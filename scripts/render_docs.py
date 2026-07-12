@@ -6,7 +6,7 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Image, Table
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "output" / "pdf"
@@ -59,6 +59,17 @@ def build(source, target, title, subtitle):
             story.append(Paragraph(clean(line), styles["BodyText"]))
         else:
             story.append(Spacer(1, 3*mm))
+    if title == "Unfold":
+        story.extend([
+            PageBreak(),
+            Paragraph("Application screenshots", styles["Heading1"]),
+            Paragraph("Final release-mode discovery feed and opportunity detail workflow.", styles["BodyText"]),
+            Spacer(1, 4*mm),
+            Table([[
+                Image(str(ROOT/"docs"/"screenshots"/"final-home.png"), width=75*mm, height=163*mm),
+                Image(str(ROOT/"docs"/"screenshots"/"final-profile.png"), width=75*mm, height=163*mm),
+            ]], colWidths=[78*mm, 78*mm]),
+        ])
     doc = SimpleDocTemplate(str(target), pagesize=A4, rightMargin=18*mm, leftMargin=18*mm, topMargin=17*mm, bottomMargin=17*mm, title=title, author="Rajveer Singh Jolly")
     doc.build(story)
 

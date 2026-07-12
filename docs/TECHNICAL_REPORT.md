@@ -5,6 +5,7 @@
 **Platform:** Flutter (Android)  
 **Backend:** Firebase  
 **Project:** Unfold
+**Repository:** https://github.com/SpaceMan619/unfold-alu
 
 ## Abstract
 
@@ -143,9 +144,9 @@ Indexes are declared for opportunity status/creation time and application studen
 
 ## 6. UI/UX and Liquid Glass Interpretation
 
-The interface uses a dark ink background, mint/cyan highlights, warm amber accents, rounded geometry, and Plus Jakarta Sans typography. The visual hierarchy is deliberately stronger than a collection of plain Material cards: prominent editorial headings introduce each task, sourced startup logos and verification pills support scanability, and a floating pill navigation bar keeps primary destinations reachable. The student profile uses an external-viewer composition inspired by social profiles: header artwork, overlapping round identity mark, bio, location and education metadata, profile signals, skills, and CV evidence.
+The interface uses a neutral black-and-white foundation, venture-specific accents, warm amber identity elements, rounded geometry, and Plus Jakarta Sans typography. The visual hierarchy is deliberately stronger than a collection of plain Material cards: prominent editorial headings introduce each task, sourced startup logos and verification pills support scanability, and a floating pill navigation bar keeps primary destinations reachable. The student profile uses an external-viewer composition inspired by social profiles: header artwork, overlapping round identity mark, bio, location and education metadata, profile signals, editable skills and interests, and CV evidence.
 
-`GlassSurface` is the core reusable component. It clips content to a rounded rectangle, applies a localized `BackdropFilter` blur, adds a translucent fill and gradient, draws a low-opacity border and top highlight, and casts a soft shadow. These layers suggest refractive glass without copying an iOS-only API. Flutter documents `BackdropFilter` as a way to apply an image filter to existing painted content [6]. Blur is localized within clipped cards rather than applied to the entire screen, reducing unnecessary GPU work on Android.
+`GlassSurface` is the core reusable component. It clips content to a rounded rectangle, adds a restrained tonal gradient, draws a low-opacity border and top highlight, and casts a short soft shadow. Early builds used repeated live backdrop blur, but physical-device testing exposed scroll jank. The final design removes that expensive per-card operation while preserving depth through static paint layers. This correction improved motion without reducing text or image resolution.
 
 Usability was prioritized alongside appearance:
 
