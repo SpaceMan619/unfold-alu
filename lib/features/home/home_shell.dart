@@ -139,34 +139,60 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       child: GlassSurface(
         radius: 28,
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-        child: Row(
-          children: List.generate(items.length, (index) {
-            final selected = studentTab == index;
-            return Expanded(
-              child: Semantics(
-                label: items[index].$2,
-                selected: selected,
-                child: InkWell(
-                  key: ValueKey('nav-$index'),
-                  borderRadius: BorderRadius.circular(22),
-                  onTap: () => setState(() => studentTab = index),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 240),
-                    padding: const EdgeInsets.symmetric(vertical: 11),
-                    decoration: BoxDecoration(
-                      color: selected ? UnfoldColors.mint : Colors.transparent,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      items[index].$1,
-                      color: selected ? UnfoldColors.ink : UnfoldColors.muted,
-                      size: 22,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final itemWidth = constraints.maxWidth / items.length;
+            return SizedBox(
+              height: 44,
+              child: Stack(
+                children: [
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 360),
+                    curve: Curves.easeOutCubic,
+                    left: studentTab * itemWidth + 3,
+                    top: 0,
+                    width: itemWidth - 6,
+                    height: 44,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: UnfoldColors.mint,
+                        borderRadius: BorderRadius.circular(22),
+                      ),
                     ),
                   ),
-                ),
+                  Row(
+                    children: List.generate(items.length, (index) {
+                      final selected = studentTab == index;
+                      return Expanded(
+                        child: Semantics(
+                          label: items[index].$2,
+                          selected: selected,
+                          child: InkWell(
+                            key: ValueKey('nav-$index'),
+                            borderRadius: BorderRadius.circular(22),
+                            onTap: () => setState(() => studentTab = index),
+                            child: Center(
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 180),
+                                child: Icon(
+                                  items[index].$1,
+                                  key: ValueKey('$index-$selected'),
+                                  color: selected
+                                      ? UnfoldColors.ink
+                                      : UnfoldColors.muted,
+                                  size: 22,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
               ),
             );
-          }),
+          },
         ),
       ),
     );
@@ -1127,42 +1153,20 @@ class _ProfileView extends ConsumerWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 128),
       children: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              height: 168,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xfff4f4f5),
-                    Color(0xff52525b),
-                    Color(0xff18181b),
-                  ],
-                ),
-              ),
-              child: Align(
-                alignment: const Alignment(.8, -.45),
-                child: Icon(
-                  Icons.blur_on_rounded,
-                  size: 120,
-                  color: Colors.white.withValues(alpha: .12),
-                ),
-              ),
-            ),
-            Positioned(
-              left: 20,
-              bottom: -46,
-              child: Container(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 30, 20, 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
                 padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: UnfoldColors.ink,
+                decoration: BoxDecoration(
+                  color: UnfoldColors.surface,
                   shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white12),
                 ),
                 child: CircleAvatar(
-                  radius: 45,
+                  radius: 48,
                   backgroundColor: UnfoldColors.amber,
                   backgroundImage: photoBytes == null
                       ? null
@@ -1179,11 +1183,8 @@ class _ProfileView extends ConsumerWidget {
                       : null,
                 ),
               ),
-            ),
-            Positioned(
-              right: 20,
-              bottom: -22,
-              child: OutlinedButton.icon(
+              const Spacer(),
+              OutlinedButton.icon(
                 onPressed: () async {
                   try {
                     final changed = await ref
@@ -1215,10 +1216,10 @@ class _ProfileView extends ConsumerWidget {
                 icon: const Icon(Icons.edit_rounded, size: 16),
                 label: Text(photoBytes == null ? 'Add photo' : 'Change photo'),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        const SizedBox(height: 62),
+        const SizedBox(height: 18),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
@@ -1371,6 +1372,17 @@ class _ProfileView extends ConsumerWidget {
                   onPressed: () => ref.read(sessionProvider.notifier).signOut(),
                   icon: const Icon(Icons.logout_rounded),
                   label: const Text('Sign out'),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Center(
+                child: Text(
+                  'Unfold v0.8.0',
+                  style: TextStyle(
+                    color: UnfoldColors.muted,
+                    fontSize: 11,
+                    letterSpacing: .4,
+                  ),
                 ),
               ),
             ],
