@@ -92,6 +92,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             .where((item) => activity.savedIds.contains(item.id))
             .toList(),
         onOpen: _showOpportunity,
+        onUnsave: ref.read(opportunityActivityProvider.notifier).toggleSaved,
       );
     }
     if (studentTab == 2) {
@@ -190,23 +191,34 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final submitted = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      enableDrag: true,
+      isDismissible: true,
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => ApplicationFormSheet(
-        opportunity: opportunity,
-        onSubmit:
-            ({
-              required motivation,
-              required availability,
-              required portfolioUrl,
-            }) => ref
-                .read(opportunityActivityProvider.notifier)
-                .submitApplication(
-                  opportunity: opportunity,
-                  motivation: motivation,
-                  availability: availability,
-                  portfolioUrl: portfolioUrl,
-                ),
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: .94,
+        minChildSize: .2,
+        maxChildSize: .96,
+        snap: true,
+        snapSizes: const [.2, .94],
+        builder: (context, scrollController) => ApplicationFormSheet(
+          scrollController: scrollController,
+          opportunity: opportunity,
+          onSubmit:
+              ({
+                required motivation,
+                required availability,
+                required portfolioUrl,
+              }) => ref
+                  .read(opportunityActivityProvider.notifier)
+                  .submitApplication(
+                    opportunity: opportunity,
+                    motivation: motivation,
+                    availability: availability,
+                    portfolioUrl: portfolioUrl,
+                  ),
+        ),
       ),
     );
     if (submitted != true || !mounted) return;
@@ -622,6 +634,8 @@ class _DiscoveryChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Container(
+          constraints: const BoxConstraints(minHeight: 42),
+          alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
           decoration: BoxDecoration(
             color: selected
@@ -634,10 +648,12 @@ class _DiscoveryChip extends StatelessWidget {
           ),
           child: Text(
             label,
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: selected ? UnfoldColors.ink : UnfoldColors.muted,
               fontSize: 12,
               fontWeight: FontWeight.w700,
+              height: 1,
             ),
           ),
         ),
@@ -663,9 +679,14 @@ String _categoryFor(Opportunity opportunity) {
 }
 
 class _SavedView extends StatelessWidget {
-  const _SavedView({required this.items, required this.onOpen});
+  const _SavedView({
+    required this.items,
+    required this.onOpen,
+    required this.onUnsave,
+  });
   final List<Opportunity> items;
   final ValueChanged<Opportunity> onOpen;
+  final ValueChanged<String> onUnsave;
 
   @override
   Widget build(BuildContext context) {
@@ -680,18 +701,80 @@ class _SavedView extends StatelessWidget {
           : Column(
               children: items
                   .map(
-                    (item) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _OpportunityCard(
-                        opportunity: item,
-                        saved: true,
-                        onSave: () {},
-                        onTap: () => onOpen(item),
-                      ),
+                    (item) => _SavedOpportunityTile(
+                      key: ValueKey('saved-${item.id}'),
+                      opportunity: item,
+                      onOpen: () => onOpen(item),
+                      onUnsave: () => onUnsave(item.id),
                     ),
                   )
                   .toList(),
             ),
+    );
+  }
+}
+
+class _SavedOpportunityTile extends StatefulWidget {
+  const _SavedOpportunityTile({
+    required this.opportunity,
+    required this.onOpen,
+    required this.onUnsave,
+    super.key,
+  });
+
+  final Opportunity opportunity;
+  final VoidCallback onOpen;
+  final VoidCallback onUnsave;
+
+  @override
+  State<_SavedOpportunityTile> createState() => _SavedOpportunityTileState();
+}
+
+class _SavedOpportunityTileState extends State<_SavedOpportunityTile> {
+  bool visible = true;
+
+  Future<void> remove() async {
+    if (!visible) return;
+    setState(() => visible = false);
+    await Future<void>.delayed(const Duration(milliseconds: 220));
+    widget.onUnsave();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeInOut,
+      child: visible
+          ? AnimatedOpacity(
+              opacity: visible ? 1 : 0,
+              duration: const Duration(milliseconds: 180),
+              child: Dismissible(
+                key: ValueKey(widget.opportunity.id),
+                direction: DismissDirection.endToStart,
+                onDismissed: (_) => widget.onUnsave(),
+                background: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.only(right: 24),
+                  alignment: Alignment.centerRight,
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withValues(alpha: .18),
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  child: const Icon(Icons.bookmark_remove_rounded),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _OpportunityCard(
+                    opportunity: widget.opportunity,
+                    saved: true,
+                    onSave: remove,
+                    onTap: widget.onOpen,
+                  ),
+                ),
+              ),
+            )
+          : const SizedBox.shrink(),
     );
   }
 }
@@ -777,6 +860,8 @@ class _ProfileView extends ConsumerWidget {
     final session = ref.watch(sessionProvider);
     final cv = ref.watch(cvAnalysisProvider);
     final photoUrl = ref.watch(profilePhotoUrlProvider).value;
+    final publicProfile =
+        ref.watch(publicProfileProvider).value ?? const PublicProfile();
     final initials = session.name
         .split(' ')
         .where((part) => part.isNotEmpty)
@@ -931,9 +1016,25 @@ class _ProfileView extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 26),
-              const _SectionHeader(title: 'Skills & interests', action: 'Edit'),
+              _SectionHeader(
+                title: 'Skills & interests',
+                action: 'Edit',
+                onAction: () => _showSkillsEditor(context, ref, publicProfile),
+              ),
               const SizedBox(height: 12),
-              if (cv.hasEvidence)
+              if (publicProfile.skills.isNotEmpty ||
+                  publicProfile.interests.isNotEmpty)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ...publicProfile.skills.map(_SkillChip.new),
+                    ...publicProfile.interests.map(
+                      (interest) => _SkillChip(interest),
+                    ),
+                  ],
+                )
+              else if (cv.hasEvidence)
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -1002,6 +1103,97 @@ class _ProfileView extends ConsumerWidget {
       ],
     );
   }
+}
+
+Future<void> _showSkillsEditor(
+  BuildContext context,
+  WidgetRef ref,
+  PublicProfile profile,
+) async {
+  final skills = TextEditingController(text: profile.skills.join(', '));
+  final interests = TextEditingController(text: profile.interests.join(', '));
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) => Container(
+      padding: EdgeInsets.fromLTRB(
+        22,
+        18,
+        22,
+        MediaQuery.viewInsetsOf(sheetContext).bottom + 24,
+      ),
+      decoration: const BoxDecoration(
+        color: UnfoldColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Skills & interests',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Separate each item with a comma.',
+              style: TextStyle(color: UnfoldColors.muted),
+            ),
+            const SizedBox(height: 18),
+            _OpportunityField(
+              controller: skills,
+              label: 'Skills',
+              validator: (_) => null,
+            ),
+            const SizedBox(height: 12),
+            _OpportunityField(
+              controller: interests,
+              label: 'Interests',
+              validator: (_) => null,
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () async {
+                  List<String> parse(String value) => value
+                      .split(',')
+                      .map((item) => item.trim())
+                      .where((item) => item.isNotEmpty)
+                      .take(8)
+                      .toList();
+                  await ref
+                      .read(publicProfileEditorProvider)
+                      .save(
+                        skills: parse(skills.text),
+                        interests: parse(interests.text),
+                      );
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                },
+                child: const Text('Save profile'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+  skills.dispose();
+  interests.dispose();
 }
 
 class _ProfileMeta extends StatelessWidget {
@@ -2042,13 +2234,19 @@ class _SkillChip extends StatelessWidget {
   final String label;
   @override
   Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minHeight: 34),
+    alignment: Alignment.center,
     padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
     decoration: BoxDecoration(
       color: Colors.white.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(20),
       border: Border.all(color: Colors.white12),
     ),
-    child: Text(label, style: const TextStyle(fontSize: 12)),
+    child: Text(
+      label,
+      textAlign: TextAlign.center,
+      style: const TextStyle(fontSize: 12, height: 1),
+    ),
   );
 }
 
@@ -2099,20 +2297,33 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.action});
+  const _SectionHeader({
+    required this.title,
+    required this.action,
+    this.onAction,
+  });
   final String title;
   final String action;
+  final VoidCallback? onAction;
   @override
   Widget build(BuildContext context) => Row(
     children: [
       Expanded(
         child: Text(title, style: Theme.of(context).textTheme.headlineSmall),
       ),
-      Text(
-        action,
-        style: const TextStyle(
-          color: UnfoldColors.cyan,
-          fontWeight: FontWeight.w600,
+      InkWell(
+        onTap: onAction,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          child: Text(
+            action,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: UnfoldColors.cyan,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
       ),
     ],
@@ -2139,13 +2350,16 @@ class _StartupLogo extends StatelessWidget {
     return Container(
       width: 52,
       height: 52,
+      alignment: Alignment.center,
       padding: asset == null ? EdgeInsets.zero : const EdgeInsets.all(7),
       decoration: BoxDecoration(
         color: asset == null ? opportunity.color : Colors.white,
         borderRadius: BorderRadius.circular(16),
       ),
       child: asset != null
-          ? Image.asset(asset, fit: BoxFit.contain, cacheWidth: 128)
+          ? Center(
+              child: Image.asset(asset, fit: BoxFit.contain, cacheWidth: 128),
+            )
           : Center(
               child: Text(
                 _ventureMark(opportunity.startup),

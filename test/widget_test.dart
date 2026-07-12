@@ -20,5 +20,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Flutter product intern'), findsOneWidget);
+
+    final removeButton = find.byKey(const ValueKey('save-demo-kayko-flutter'));
+    await tester.ensureVisible(removeButton);
+    await tester.tap(removeButton);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Flutter product intern'), findsNothing);
+    expect(
+      find.text('Save an opportunity and it will wait for you here.'),
+      findsOneWidget,
+    );
   });
 }

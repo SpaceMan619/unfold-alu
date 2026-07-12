@@ -18,6 +18,49 @@ final profilePhotoUrlProvider = StreamProvider<String?>((ref) {
       .map((snapshot) => snapshot.data()?['photoUrl'] as String?);
 });
 
+class PublicProfile {
+  const PublicProfile({this.skills = const [], this.interests = const []});
+
+  final List<String> skills;
+  final List<String> interests;
+}
+
+final publicProfileProvider = StreamProvider<PublicProfile>((ref) {
+  final uid = ref.watch(sessionProvider.select((session) => session.uid));
+  if (uid.isEmpty) return Stream.value(const PublicProfile());
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .snapshots()
+      .map((snapshot) {
+        final data = snapshot.data() ?? const <String, dynamic>{};
+        return PublicProfile(
+          skills: List<String>.from(data['skills'] as List? ?? const []),
+          interests: List<String>.from(data['interests'] as List? ?? const []),
+        );
+      });
+});
+
+final publicProfileEditorProvider = Provider(PublicProfileEditor.new);
+
+class PublicProfileEditor {
+  PublicProfileEditor(this.ref);
+  final Ref ref;
+
+  Future<void> save({
+    required List<String> skills,
+    required List<String> interests,
+  }) async {
+    final uid = ref.read(sessionProvider).uid;
+    if (uid.isEmpty) return;
+    await FirebaseFirestore.instance.collection('users').doc(uid).set({
+      'skills': skills,
+      'interests': interests,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+}
+
 final profilePhotoUploaderProvider = Provider(ProfilePhotoUploader.new);
 
 class ProfilePhotoUploader {

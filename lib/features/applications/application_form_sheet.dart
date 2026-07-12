@@ -15,11 +15,13 @@ class ApplicationFormSheet extends StatefulWidget {
   const ApplicationFormSheet({
     required this.opportunity,
     required this.onSubmit,
+    this.scrollController,
     super.key,
   });
 
   final Opportunity opportunity;
   final ApplicationSubmit onSubmit;
+  final ScrollController? scrollController;
 
   @override
   State<ApplicationFormSheet> createState() => _ApplicationFormSheetState();
@@ -81,6 +83,7 @@ class _ApplicationFormSheetState extends State<ApplicationFormSheet> {
         child: Form(
           key: formKey,
           child: ListView(
+            controller: widget.scrollController,
             padding: EdgeInsets.fromLTRB(
               22,
               14,

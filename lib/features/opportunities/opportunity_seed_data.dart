@@ -45,6 +45,9 @@ const sourcedVentureOpportunitySeeds = [
       skills: ['Flutter', 'Firebase', 'UI testing'],
       match: 94,
       color: Color(0xff68ddc9),
+      isPaid: true,
+      monthlyAmount: 250000,
+      currency: 'RWF',
     ),
   ),
   VentureOpportunitySeed(
@@ -65,6 +68,9 @@ const sourcedVentureOpportunitySeeds = [
       skills: ['Python', 'Spreadsheets', 'Data storytelling'],
       match: 89,
       color: Color(0xff9fa8ff),
+      isPaid: true,
+      monthlyAmount: 350,
+      currency: 'USD',
     ),
   ),
   VentureOpportunitySeed(
@@ -106,6 +112,9 @@ const sourcedVentureOpportunitySeeds = [
       skills: ['Market research', 'Outreach', 'Impact reporting'],
       match: 83,
       color: Color(0xffffc66b),
+      isPaid: true,
+      monthlyAmount: 180000,
+      currency: 'RWF',
     ),
   ),
   VentureOpportunitySeed(
@@ -189,6 +198,9 @@ const sourcedVentureOpportunitySeeds = [
       skills: ['Figma', 'User research', 'Accessibility'],
       match: 88,
       color: Color(0xffffc66b),
+      isPaid: true,
+      monthlyAmount: 300,
+      currency: 'USD',
     ),
   ),
   VentureOpportunitySeed(

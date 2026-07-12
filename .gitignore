@@ -36,6 +36,7 @@ functions/node_modules/
 functions/lib/
 functions/.env
 functions/.secret.local
+experiments/
 
 # Symbolication related
 app.*.symbols
