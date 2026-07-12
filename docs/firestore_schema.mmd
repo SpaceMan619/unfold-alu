@@ -1,0 +1,40 @@
+erDiagram
+    USERS ||--o{ STARTUPS : owns
+    USERS ||--o{ APPLICATIONS : submits
+    USERS ||--o{ BOOKMARK_ITEMS : saves
+    STARTUPS ||--o{ OPPORTUNITIES : publishes
+    OPPORTUNITIES ||--o{ APPLICATIONS : receives
+    USERS {
+      string uid PK
+      string name
+      string email
+      string role
+      timestamp createdAt
+      timestamp updatedAt
+    }
+    STARTUPS {
+      string startupId PK
+      string ownerId FK
+      string verificationStatus
+    }
+    OPPORTUNITIES {
+      string opportunityId PK
+      string ownerId FK
+      string role
+      string startupName
+      string status
+      array skills
+      timestamp createdAt
+    }
+    APPLICATIONS {
+      string applicationId PK
+      string opportunityId FK
+      string studentId FK
+      string founderId FK
+      string status
+      timestamp createdAt
+    }
+    BOOKMARK_ITEMS {
+      string userId FK
+      string opportunityId FK
+    }

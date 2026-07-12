@@ -1,0 +1,2210 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../app/unfold_theme.dart';
+import '../../core/widgets/glass_surface.dart';
+import '../applications/application.dart';
+import '../applications/application_form_sheet.dart';
+import '../applications/application_review_controller.dart';
+import '../auth/session_controller.dart';
+import '../cv/cv_analysis_controller.dart';
+import '../opportunities/opportunity.dart';
+import '../opportunities/opportunity_controller.dart';
+import '../profile/profile_photo_controller.dart';
+import '../startups/startup_controller.dart';
+
+enum UserMode { student, founder }
+
+String _todayLabel() {
+  const weekdays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  final now = DateTime.now();
+  return '${weekdays[now.weekday - 1]}, ${now.day} ${months[now.month - 1]}';
+}
+
+class HomeShell extends ConsumerStatefulWidget {
+  const HomeShell({super.key});
+
+  @override
+  ConsumerState<HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends ConsumerState<HomeShell> {
+  UserMode mode = UserMode.student;
+  int studentTab = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      extendBody: true,
+      body: Stack(
+        children: [
+          const _AmbientBackground(),
+          SafeArea(
+            bottom: false,
+            child: RefreshIndicator.adaptive(
+              color: Colors.white,
+              onRefresh: _refresh,
+              child: mode == UserMode.student
+                  ? _studentContent()
+                  : _FounderDashboard(
+                      onSwitch: _switchMode,
+                      onCreate: _showCreateOpportunity,
+                      onReview: _showApplicationReview,
+                      onEdit: _showEditOpportunity,
+                    ),
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: mode == UserMode.student
+          ? _studentNavigation()
+          : null,
+    );
+  }
+
+  Widget _studentContent() {
+    final activity = ref.watch(opportunityActivityProvider);
+    if (studentTab == 1) {
+      return _SavedView(
+        items: activity.opportunities
+            .where((item) => activity.savedIds.contains(item.id))
+            .toList(),
+        onOpen: _showOpportunity,
+      );
+    }
+    if (studentTab == 2) {
+      return _ApplicationsView(
+        items: activity.opportunities
+            .where((item) => activity.appliedIds.contains(item.id))
+            .toList(),
+      );
+    }
+    if (studentTab == 3) {
+      return _ProfileView(onSwitch: _switchMode);
+    }
+    return _DiscoverView(
+      opportunities: activity.opportunities,
+      saved: activity.savedIds,
+      onSave: ref.read(opportunityActivityProvider.notifier).toggleSaved,
+      onOpen: _showOpportunity,
+    );
+  }
+
+  Widget _studentNavigation() {
+    const items = [
+      (Icons.explore_rounded, 'Discover'),
+      (Icons.bookmark_rounded, 'Saved'),
+      (Icons.work_history_rounded, 'Applications'),
+      (Icons.person_rounded, 'Profile'),
+    ];
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(18, 0, 18, 14),
+      child: GlassSurface(
+        radius: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+        child: Row(
+          children: List.generate(items.length, (index) {
+            final selected = studentTab == index;
+            return Expanded(
+              child: Semantics(
+                label: items[index].$2,
+                selected: selected,
+                child: InkWell(
+                  key: ValueKey('nav-$index'),
+                  borderRadius: BorderRadius.circular(22),
+                  onTap: () => setState(() => studentTab = index),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 240),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    decoration: BoxDecoration(
+                      color: selected ? UnfoldColors.mint : Colors.transparent,
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    child: Icon(
+                      items[index].$1,
+                      color: selected ? UnfoldColors.ink : UnfoldColors.muted,
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  void _switchMode() {
+    setState(
+      () =>
+          mode = mode == UserMode.student ? UserMode.founder : UserMode.student,
+    );
+  }
+
+  Future<void> _refresh() async {
+    ref.invalidate(opportunityActivityProvider);
+    ref.invalidate(applicationReviewProvider);
+    ref.invalidate(startupProvider);
+    ref.invalidate(profilePhotoUrlProvider);
+    await Future<void>.delayed(const Duration(milliseconds: 650));
+  }
+
+  void _showOpportunity(Opportunity opportunity) {
+    final activity = ref.read(opportunityActivityProvider);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _OpportunitySheet(
+        opportunity: opportunity,
+        applied: activity.appliedIds.contains(opportunity.id),
+        onApply: () => _showApplicationForm(opportunity),
+      ),
+    );
+  }
+
+  Future<void> _showApplicationForm(Opportunity opportunity) async {
+    final submitted = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ApplicationFormSheet(
+        opportunity: opportunity,
+        onSubmit:
+            ({
+              required motivation,
+              required availability,
+              required portfolioUrl,
+            }) => ref
+                .read(opportunityActivityProvider.notifier)
+                .submitApplication(
+                  opportunity: opportunity,
+                  motivation: motivation,
+                  availability: availability,
+                  portfolioUrl: portfolioUrl,
+                ),
+      ),
+    );
+    if (submitted != true || !mounted) return;
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Application submitted — track it in Applications.'),
+      ),
+    );
+  }
+
+  void _showCreateOpportunity() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _CreateOpportunitySheet(
+        onCreate: (opportunity) async {
+          try {
+            await ref
+                .read(opportunityActivityProvider.notifier)
+                .addOpportunity(opportunity);
+            if (!mounted) return;
+            Navigator.pop(this.context);
+            ScaffoldMessenger.of(this.context).showSnackBar(
+              const SnackBar(content: Text('Opportunity published.')),
+            );
+          } catch (error) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(
+              this.context,
+            ).showSnackBar(SnackBar(content: Text(error.toString())));
+          }
+        },
+      ),
+    );
+  }
+
+  void _showEditOpportunity(Opportunity opportunity) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _CreateOpportunitySheet(
+        initial: opportunity,
+        onCreate: (updated) async {
+          await ref
+              .read(opportunityActivityProvider.notifier)
+              .updateOpportunity(updated);
+          if (mounted) Navigator.pop(this.context);
+        },
+      ),
+    );
+  }
+
+  void _showApplicationReview() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const _ApplicationReviewSheet(),
+    );
+  }
+}
+
+class _DiscoverView extends StatefulWidget {
+  const _DiscoverView({
+    required this.opportunities,
+    required this.saved,
+    required this.onSave,
+    required this.onOpen,
+  });
+
+  final List<Opportunity> opportunities;
+  final Set<String> saved;
+  final ValueChanged<String> onSave;
+  final ValueChanged<Opportunity> onOpen;
+
+  @override
+  State<_DiscoverView> createState() => _DiscoverViewState();
+}
+
+class _DiscoverViewState extends State<_DiscoverView> {
+  String query = '';
+  String category = 'All';
+
+  List<Opportunity> get filteredOpportunities {
+    return widget.opportunities.where((item) {
+      final haystack = [
+        item.role,
+        item.startup,
+        item.summary,
+        ...item.skills,
+      ].join(' ').toLowerCase();
+      final matchesQuery = query.isEmpty || haystack.contains(query);
+      final matchesCategory =
+          category == 'All' || _categoryFor(item) == category;
+      return matchesQuery && matchesCategory;
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 128),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _todayLabel(),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.55),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Good morning, Rajveer',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+            const CircleAvatar(
+              radius: 23,
+              backgroundColor: UnfoldColors.amber,
+              child: Text(
+                'RJ',
+                style: TextStyle(
+                  color: UnfoldColors.ink,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 34),
+        Text(
+          'Your next chapter\nis ready to unfold.',
+          style: Theme.of(context).textTheme.displaySmall,
+        ),
+        const SizedBox(height: 22),
+        GlassSurface(
+          radius: 24,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+          child: TextField(
+            onChanged: (value) =>
+                setState(() => query = value.trim().toLowerCase()),
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              icon: Icon(Icons.search_rounded, color: UnfoldColors.muted),
+              hintText: 'Search roles, skills, or startups',
+              hintStyle: TextStyle(color: UnfoldColors.muted),
+              suffixIcon: Icon(Icons.tune_rounded, color: UnfoldColors.mint),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: ['All', 'Technology', 'Climate', 'Community', 'Business']
+                .map(
+                  (label) => _DiscoveryChip(
+                    label: label,
+                    selected: category == label,
+                    onTap: () => setState(() => category = label),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+        const SizedBox(height: 28),
+        const _SectionHeader(title: 'Explore opportunities', action: 'See all'),
+        const SizedBox(height: 14),
+        const _ProfileMatchBanner(),
+        const SizedBox(height: 14),
+        if (filteredOpportunities.isEmpty)
+          const _EmptyState(
+            icon: Icons.search_off_rounded,
+            message: 'No opportunities match those filters yet.',
+          ),
+        ...filteredOpportunities.map(
+          (opportunity) => Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: _OpportunityCard(
+              opportunity: opportunity,
+              saved: widget.saved.contains(opportunity.id),
+              onSave: () => widget.onSave(opportunity.id),
+              onTap: () => widget.onOpen(opportunity),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileMatchBanner extends StatelessWidget {
+  const _ProfileMatchBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassSurface(
+      radius: 22,
+      padding: const EdgeInsets.all(15),
+      color: UnfoldColors.cyan.withValues(alpha: 0.08),
+      child: const Row(
+        children: [
+          Icon(Icons.auto_awesome_rounded, color: UnfoldColors.cyan),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Unlock your matches',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Add your skills or CV to see what fits — and why.',
+                  style: TextStyle(color: UnfoldColors.muted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.arrow_forward_rounded, color: UnfoldColors.cyan),
+        ],
+      ),
+    );
+  }
+}
+
+class _OpportunityCard extends StatelessWidget {
+  const _OpportunityCard({
+    required this.opportunity,
+    required this.saved,
+    required this.onSave,
+    required this.onTap,
+  });
+
+  final Opportunity opportunity;
+  final bool saved;
+  final VoidCallback onSave;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassSurface(
+      onTap: onTap,
+      color: opportunity.color.withValues(alpha: 0.07),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: opportunity.color,
+                  borderRadius: BorderRadius.circular(99),
+                  boxShadow: [
+                    BoxShadow(
+                      color: opportunity.color.withValues(alpha: .55),
+                      blurRadius: 12,
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              Text(
+                _categoryFor(opportunity).toUpperCase(),
+                style: TextStyle(
+                  color: opportunity.color,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              const SizedBox(width: 9),
+              _CompensationPill(opportunity: opportunity),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              _StartupLogo(opportunity: opportunity),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Text(
+                  opportunity.startup,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: opportunity.color.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'Verified',
+                  style: TextStyle(
+                    color: opportunity.color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(
+            opportunity.role,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            opportunity.summary,
+            style: const TextStyle(color: UnfoldColors.muted),
+          ),
+          if (opportunity.skills.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: opportunity.skills.take(3).map((skill) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .055),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: .08),
+                    ),
+                  ),
+                  child: Text(
+                    skill,
+                    style: const TextStyle(
+                      color: UnfoldColors.muted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              const Icon(
+                Icons.location_on_outlined,
+                size: 16,
+                color: UnfoldColors.muted,
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  opportunity.location,
+                  style: const TextStyle(
+                    color: UnfoldColors.muted,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              IconButton(
+                key: ValueKey('save-${opportunity.id}'),
+                onPressed: onSave,
+                icon: Icon(
+                  saved
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded,
+                  color: saved ? UnfoldColors.amber : Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DiscoveryChip extends StatelessWidget {
+  const _DiscoveryChip({
+    required this.label,
+    required this.onTap,
+    this.selected = false,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+          decoration: BoxDecoration(
+            color: selected
+                ? UnfoldColors.mint
+                : Colors.white.withValues(alpha: 0.055),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: selected ? UnfoldColors.mint : Colors.white12,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? UnfoldColors.ink : UnfoldColors.muted,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _categoryFor(Opportunity opportunity) {
+  final text =
+      '${opportunity.role} ${opportunity.summary} ${opportunity.skills.join(' ')}'
+          .toLowerCase();
+  if (RegExp(r'climate|solar|plastic|agri|farmer|energy').hasMatch(text)) {
+    return 'Climate';
+  }
+  if (RegExp(r'community|content|outreach|accessibility').hasMatch(text)) {
+    return 'Community';
+  }
+  if (RegExp(r'flutter|python|iot|api|data|software|figma').hasMatch(text)) {
+    return 'Technology';
+  }
+  return 'Business';
+}
+
+class _SavedView extends StatelessWidget {
+  const _SavedView({required this.items, required this.onOpen});
+  final List<Opportunity> items;
+  final ValueChanged<Opportunity> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SimplePage(
+      title: 'Saved',
+      subtitle: 'Keep the possibilities worth returning to.',
+      child: items.isEmpty
+          ? const _EmptyState(
+              icon: Icons.bookmark_border_rounded,
+              message: 'Save an opportunity and it will wait for you here.',
+            )
+          : Column(
+              children: items
+                  .map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _OpportunityCard(
+                        opportunity: item,
+                        saved: true,
+                        onSave: () {},
+                        onTap: () => onOpen(item),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+    );
+  }
+}
+
+class _ApplicationsView extends StatelessWidget {
+  const _ApplicationsView({required this.items});
+  final List<Opportunity> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SimplePage(
+      title: 'Applications',
+      subtitle: 'Every step, clearly in view.',
+      child: items.isEmpty
+          ? const _EmptyState(
+              icon: Icons.work_outline_rounded,
+              message: 'Your application journey will appear here.',
+            )
+          : Column(
+              children: items
+                  .map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: GlassSurface(
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: item.color,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(
+                                Icons.arrow_outward_rounded,
+                                color: UnfoldColors.ink,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.role,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Text(
+                                    item.startup,
+                                    style: const TextStyle(
+                                      color: UnfoldColors.muted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Text(
+                              'Submitted',
+                              style: TextStyle(
+                                color: UnfoldColors.mint,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+    );
+  }
+}
+
+class _ProfileView extends ConsumerWidget {
+  const _ProfileView({required this.onSwitch});
+  final VoidCallback onSwitch;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(sessionProvider);
+    final cv = ref.watch(cvAnalysisProvider);
+    final photoUrl = ref.watch(profilePhotoUrlProvider).value;
+    final initials = session.name
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part[0].toUpperCase())
+        .join();
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 128),
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              height: 168,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xfff4f4f5),
+                    Color(0xff52525b),
+                    Color(0xff18181b),
+                  ],
+                ),
+              ),
+              child: Align(
+                alignment: const Alignment(.8, -.45),
+                child: Icon(
+                  Icons.blur_on_rounded,
+                  size: 120,
+                  color: Colors.white.withValues(alpha: .12),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 20,
+              bottom: -46,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: UnfoldColors.ink,
+                  shape: BoxShape.circle,
+                ),
+                child: CircleAvatar(
+                  radius: 45,
+                  backgroundColor: UnfoldColors.amber,
+                  backgroundImage: photoUrl == null
+                      ? null
+                      : NetworkImage(photoUrl),
+                  child: photoUrl == null
+                      ? Text(
+                          initials.isEmpty ? 'U' : initials,
+                          style: const TextStyle(
+                            color: UnfoldColors.ink,
+                            fontSize: 25,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        )
+                      : null,
+                ),
+              ),
+            ),
+            Positioned(
+              right: 20,
+              bottom: -22,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  try {
+                    await ref
+                        .read(profilePhotoUploaderProvider)
+                        .chooseAndUpload();
+                  } on FormatException catch (error) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(error.message)));
+                    }
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Photo upload is unavailable right now.',
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.edit_rounded, size: 16),
+                label: const Text('Add photo'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 62),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      session.name.isEmpty ? 'Unfold member' : session.name,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                  ),
+                  const Icon(
+                    Icons.verified_rounded,
+                    color: UnfoldColors.cyan,
+                    size: 19,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Text(
+                session.email,
+                style: const TextStyle(color: UnfoldColors.muted, fontSize: 12),
+              ),
+              const SizedBox(height: 15),
+              const Text(
+                'Software engineering student building thoughtful mobile products for African communities.',
+                style: TextStyle(fontSize: 15, height: 1.45),
+              ),
+              const SizedBox(height: 13),
+              const Wrap(
+                spacing: 16,
+                runSpacing: 8,
+                children: [
+                  _ProfileMeta(
+                    icon: Icons.location_on_outlined,
+                    label: 'Kigali, Rwanda',
+                  ),
+                  _ProfileMeta(
+                    icon: Icons.school_outlined,
+                    label: 'ALU · 2027',
+                  ),
+                  _ProfileMeta(icon: Icons.link_rounded, label: 'Portfolio'),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Row(
+                children: [
+                  _ProfileStat(value: '3', label: 'Projects'),
+                  SizedBox(width: 24),
+                  _ProfileStat(value: '2', label: 'Applications'),
+                  SizedBox(width: 24),
+                  _ProfileStat(value: '1', label: 'Endorsement'),
+                ],
+              ),
+              const SizedBox(height: 26),
+              const _SectionHeader(title: 'Skills & interests', action: 'Edit'),
+              const SizedBox(height: 12),
+              if (cv.hasEvidence)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: cv.skills.map(_SkillChip.new).toList(),
+                )
+              else
+                const Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _SkillChip('Mobile products'),
+                    _SkillChip('Community impact'),
+                    _SkillChip('Open to internships'),
+                  ],
+                ),
+              const SizedBox(height: 22),
+              _CvIntelligenceCard(cv: cv),
+              const SizedBox(height: 14),
+              GlassSurface(
+                child: const Row(
+                  children: [
+                    Icon(Icons.visibility_outlined, color: UnfoldColors.mint),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'External profile preview',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'This is what verified founders see when reviewing you.',
+                            style: TextStyle(
+                              color: UnfoldColors.muted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonalIcon(
+                  onPressed: onSwitch,
+                  icon: const Icon(Icons.swap_horiz_rounded),
+                  label: const Text('Preview founder experience'),
+                ),
+              ),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: () => ref.read(sessionProvider.notifier).signOut(),
+                  icon: const Icon(Icons.logout_rounded),
+                  label: const Text('Sign out'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileMeta extends StatelessWidget {
+  const _ProfileMeta({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 15, color: UnfoldColors.muted),
+      const SizedBox(width: 5),
+      Text(
+        label,
+        style: const TextStyle(color: UnfoldColors.muted, fontSize: 12),
+      ),
+    ],
+  );
+}
+
+class _ProfileStat extends StatelessWidget {
+  const _ProfileStat({required this.value, required this.label});
+  final String value;
+  final String label;
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
+      const SizedBox(width: 4),
+      Text(
+        label,
+        style: const TextStyle(color: UnfoldColors.muted, fontSize: 12),
+      ),
+    ],
+  );
+}
+
+class _CvIntelligenceCard extends ConsumerWidget {
+  const _CvIntelligenceCard({required this.cv});
+
+  final CvAnalysisState cv;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GlassSurface(
+      color: UnfoldColors.cyan.withValues(alpha: 0.06),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.document_scanner_rounded, color: UnfoldColors.cyan),
+              SizedBox(width: 10),
+              Text(
+                'CV intelligence',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              ),
+              Spacer(),
+              Text(
+                'AI',
+                style: TextStyle(
+                  color: UnfoldColors.amber,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            cv.stage == CvAnalysisStage.selected
+                ? cv.fileName ?? 'CV selected'
+                : 'Upload your CV to build an editable skills profile and unlock explainable matches.',
+            style: const TextStyle(color: UnfoldColors.muted),
+          ),
+          const SizedBox(height: 16),
+          if (cv.stage == CvAnalysisStage.selected)
+            Row(
+              children: [
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: UnfoldColors.mint,
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Ready for secure analysis',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () =>
+                      ref.read(cvAnalysisProvider.notifier).removeCv(),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                onPressed: () =>
+                    ref.read(cvAnalysisProvider.notifier).selectCv(),
+                icon: const Icon(Icons.upload_file_rounded),
+                label: const Text('Choose PDF CV'),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FounderDashboard extends ConsumerWidget {
+  const _FounderDashboard({
+    required this.onSwitch,
+    required this.onCreate,
+    required this.onReview,
+    required this.onEdit,
+  });
+  final VoidCallback onSwitch;
+  final VoidCallback onCreate;
+  final VoidCallback onReview;
+  final ValueChanged<Opportunity> onEdit;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final applications = ref.watch(applicationReviewProvider);
+    final startup = ref.watch(startupProvider);
+    final session = ref.watch(applicationSessionProvider);
+    final opportunities = ref
+        .watch(opportunityActivityProvider)
+        .opportunities
+        .where((item) => item.ownerId == session.uid || session.uid.isEmpty)
+        .toList();
+    final shortlisted = applications
+        .where(
+          (item) => item.application.status == ApplicationStatus.shortlisted,
+        )
+        .length;
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Founder studio',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+            ),
+            IconButton(
+              onPressed: onSwitch,
+              icon: const Icon(Icons.close_rounded),
+            ),
+          ],
+        ),
+        const SizedBox(height: 28),
+        const Text(
+          'Build your team.\nGrow the mission.',
+          style: TextStyle(
+            fontSize: 36,
+            height: 1.05,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -1.3,
+          ),
+        ),
+        const SizedBox(height: 24),
+        _StartupVerificationCard(state: startup),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: const _MetricCard(value: '3', label: 'Live roles'),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _MetricCard(
+                value: '${applications.length}',
+                label: 'Applicants',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        if (opportunities.isEmpty)
+          const GlassSurface(
+            child: Text(
+              'Your published opportunities will appear here.',
+              style: TextStyle(color: UnfoldColors.muted),
+            ),
+          )
+        else
+          for (final opportunity in opportunities.take(3)) ...[
+            GlassSurface(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.verified_rounded,
+                        color: UnfoldColors.cyan,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        opportunity.startup,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const Spacer(),
+                      PopupMenuButton<String>(
+                        onSelected: (action) async {
+                          final controller = ref.read(
+                            opportunityActivityProvider.notifier,
+                          );
+                          if (action == 'edit') {
+                            onEdit(opportunity);
+                          }
+                          if (action == 'close') {
+                            await controller.closeOpportunity(opportunity.id);
+                          }
+                          if (action == 'delete') {
+                            await controller.deleteOpportunity(opportunity.id);
+                          }
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'edit', child: Text('Edit')),
+                          PopupMenuItem(value: 'close', child: Text('Close')),
+                          PopupMenuItem(value: 'delete', child: Text('Delete')),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    opportunity.role,
+                    style: const TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${applications.length} applicants · $shortlisted shortlisted',
+                    style: const TextStyle(color: UnfoldColors.muted),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('review-applicants'),
+                      onPressed: onReview,
+                      icon: const Icon(Icons.people_alt_rounded),
+                      label: const Text('Review applicants'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        const SizedBox(height: 18),
+        FilledButton.icon(
+          onPressed: startup.profile?.isVerified == true ? onCreate : null,
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('Create opportunity'),
+          style: FilledButton.styleFrom(
+            backgroundColor: UnfoldColors.mint,
+            foregroundColor: UnfoldColors.ink,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StartupVerificationCard extends ConsumerWidget {
+  const _StartupVerificationCard({required this.state});
+  final StartupState state;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = state.profile;
+    final verified = profile?.isVerified == true;
+    return GlassSurface(
+      color: (verified ? UnfoldColors.mint : UnfoldColors.amber).withValues(
+        alpha: 0.06,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                verified ? Icons.verified_rounded : Icons.shield_outlined,
+                color: verified ? UnfoldColors.mint : UnfoldColors.amber,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  profile?.name ?? 'Verify your startup',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              Text(
+                verified
+                    ? 'Verified'
+                    : profile == null
+                    ? 'Required'
+                    : 'Pending',
+                style: TextStyle(
+                  color: verified ? UnfoldColors.mint : UnfoldColors.amber,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            verified
+                ? (profile?.summary ?? '')
+                : 'Submit a short startup profile. Publishing unlocks after verification.',
+            style: const TextStyle(color: UnfoldColors.muted),
+          ),
+          if (profile == null) ...[
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () => _showStartupForm(context, ref),
+              child: const Text('Submit for verification'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showStartupForm(BuildContext context, WidgetRef ref) {
+    final name = TextEditingController();
+    final summary = TextEditingController();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          24,
+          20,
+          MediaQuery.viewInsetsOf(sheetContext).bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Startup verification',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: name,
+              decoration: const InputDecoration(labelText: 'Startup name'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: summary,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'What are you building?',
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () async {
+                  if (name.text.trim().isEmpty || summary.text.trim().isEmpty) {
+                    return;
+                  }
+                  await ref
+                      .read(startupProvider.notifier)
+                      .submit(name.text, summary.text);
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                },
+                child: const Text('Submit profile'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({required this.value, required this.label});
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => GlassSurface(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.w700,
+            color: UnfoldColors.mint,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(color: UnfoldColors.muted)),
+      ],
+    ),
+  );
+}
+
+class _ApplicationReviewSheet extends ConsumerWidget {
+  const _ApplicationReviewSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final applications = ref.watch(applicationReviewProvider);
+    return Container(
+      margin: const EdgeInsets.only(top: 56),
+      decoration: const BoxDecoration(
+        color: Color(0xff10201d),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+          children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Review applicants',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+            const Text(
+              'Move each person through a clear, simple hiring pipeline.',
+              style: TextStyle(color: UnfoldColors.muted),
+            ),
+            const SizedBox(height: 20),
+            for (final item in applications) ...[
+              _ApplicantCard(item: item),
+              const SizedBox(height: 12),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ApplicantCard extends ConsumerWidget {
+  const _ApplicantCard({required this.item});
+
+  final FounderApplication item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = item.application.status;
+    return GlassSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: UnfoldColors.mint.withValues(alpha: 0.14),
+                foregroundColor: UnfoldColors.mint,
+                child: Text(item.studentName.characters.first),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.studentName,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      item.location,
+                      style: const TextStyle(
+                        color: UnfoldColors.muted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _ApplicationStatusPill(status: status),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            item.roleTitle,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 9),
+          Text(
+            item.application.motivation,
+            style: const TextStyle(color: UnfoldColors.muted, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: [for (final skill in item.skills) _SkillChip(skill)],
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<ApplicationStatus>(
+            key: ValueKey('status-${item.application.id}'),
+            initialValue: status,
+            decoration: const InputDecoration(
+              labelText: 'Application status',
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              for (final option in ApplicationStatus.values)
+                DropdownMenuItem(
+                  value: option,
+                  child: Text(_statusLabel(option)),
+                ),
+            ],
+            onChanged: (next) async {
+              if (next == null) return;
+              try {
+                await ref
+                    .read(applicationReviewProvider.notifier)
+                    .updateStatus(item.application.id, next);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '${item.studentName} moved to ${_statusLabel(next).toLowerCase()}.',
+                    ),
+                  ),
+                );
+              } catch (_) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Status could not be updated. Try again.'),
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ApplicationStatusPill extends StatelessWidget {
+  const _ApplicationStatusPill({required this.status});
+
+  final ApplicationStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (status) {
+      ApplicationStatus.accepted => UnfoldColors.mint,
+      ApplicationStatus.rejected => Colors.redAccent,
+      ApplicationStatus.shortlisted => UnfoldColors.amber,
+      ApplicationStatus.reviewing => UnfoldColors.cyan,
+      ApplicationStatus.submitted => UnfoldColors.muted,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
+      ),
+      child: Text(
+        _statusLabel(status),
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+String _statusLabel(ApplicationStatus status) => switch (status) {
+  ApplicationStatus.submitted => 'Submitted',
+  ApplicationStatus.reviewing => 'Reviewing',
+  ApplicationStatus.shortlisted => 'Shortlisted',
+  ApplicationStatus.accepted => 'Accepted',
+  ApplicationStatus.rejected => 'Rejected',
+};
+
+String _ventureMark(String name) {
+  final words = name
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty)
+      .toList();
+  if (words.isEmpty) return 'U';
+  if (words.length == 1) return words.first.substring(0, 1).toUpperCase();
+  return '${words.first[0]}${words.last[0]}'.toUpperCase();
+}
+
+class _CreateOpportunitySheet extends StatefulWidget {
+  const _CreateOpportunitySheet({required this.onCreate, this.initial});
+
+  final Future<void> Function(Opportunity) onCreate;
+  final Opportunity? initial;
+
+  @override
+  State<_CreateOpportunitySheet> createState() =>
+      _CreateOpportunitySheetState();
+}
+
+class _CreateOpportunitySheetState extends State<_CreateOpportunitySheet> {
+  final formKey = GlobalKey<FormState>();
+  final roleController = TextEditingController();
+  final summaryController = TextEditingController();
+  final skillsController = TextEditingController();
+  final amountController = TextEditingController();
+  String arrangement = 'Hybrid';
+  bool isPaid = false;
+  String currency = 'RWF';
+  bool submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initial;
+    if (initial != null) {
+      roleController.text = initial.role;
+      summaryController.text = initial.summary;
+      skillsController.text = initial.skills.join(', ');
+      isPaid = initial.isPaid;
+      currency = initial.currency;
+      amountController.text = initial.monthlyAmount?.toStringAsFixed(0) ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    roleController.dispose();
+    summaryController.dispose();
+    skillsController.dispose();
+    amountController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 56),
+      padding: EdgeInsets.fromLTRB(
+        22,
+        14,
+        22,
+        MediaQuery.viewInsetsOf(context).bottom + 24,
+      ),
+      decoration: const BoxDecoration(
+        color: Color(0xff10201d),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Form(
+          key: formKey,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Create opportunity',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Be specific about the work and what the student will learn.',
+                style: TextStyle(color: UnfoldColors.muted),
+              ),
+              const SizedBox(height: 22),
+              _OpportunityField(
+                controller: roleController,
+                label: 'Role title',
+                validator: _required,
+              ),
+              const SizedBox(height: 12),
+              _OpportunityField(
+                controller: summaryController,
+                label: 'What will they work on?',
+                maxLines: 3,
+                validator: _required,
+              ),
+              const SizedBox(height: 12),
+              _OpportunityField(
+                controller: skillsController,
+                label: 'Skills, separated by commas',
+                validator: _required,
+              ),
+              const SizedBox(height: 14),
+              SwitchListTile.adaptive(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                title: const Text('Paid opportunity'),
+                subtitle: Text(
+                  isPaid
+                      ? 'Add the monthly stipend below.'
+                      : 'This role is unpaid.',
+                  style: const TextStyle(color: UnfoldColors.muted),
+                ),
+                value: isPaid,
+                activeTrackColor: UnfoldColors.mint,
+                onChanged: (value) => setState(() => isPaid = value),
+              ),
+              if (isPaid) ...[
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _OpportunityField(
+                        controller: amountController,
+                        label: 'Monthly amount',
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (!isPaid) return null;
+                          final amount = double.tryParse(value ?? '');
+                          return amount == null || amount <= 0
+                              ? 'Enter a valid amount'
+                              : null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'RWF', label: Text('RWF')),
+                        ButtonSegment(value: 'USD', label: Text('USD')),
+                      ],
+                      selected: {currency},
+                      onSelectionChanged: (value) =>
+                          setState(() => currency = value.first),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 14),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'Remote', label: Text('Remote')),
+                  ButtonSegment(value: 'Hybrid', label: Text('Hybrid')),
+                  ButtonSegment(value: 'On-site', label: Text('On-site')),
+                ],
+                selected: {arrangement},
+                onSelectionChanged: (selection) {
+                  setState(() => arrangement = selection.first);
+                },
+              ),
+              const SizedBox(height: 22),
+              FilledButton(
+                key: const ValueKey('publish-opportunity'),
+                onPressed: submitting ? null : _submit,
+                style: FilledButton.styleFrom(
+                  backgroundColor: UnfoldColors.mint,
+                  foregroundColor: UnfoldColors.ink,
+                  padding: const EdgeInsets.symmetric(vertical: 17),
+                ),
+                child: Text(submitting ? 'Publishing…' : 'Publish opportunity'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String? _required(String? value) {
+    return value == null || value.trim().isEmpty
+        ? 'This field is required'
+        : null;
+  }
+
+  Future<void> _submit() async {
+    if (!formKey.currentState!.validate()) return;
+    final skills = skillsController.text
+        .split(',')
+        .map((skill) => skill.trim())
+        .where((skill) => skill.isNotEmpty)
+        .take(5)
+        .toList();
+    setState(() => submitting = true);
+    await widget.onCreate(
+      Opportunity(
+        id:
+            widget.initial?.id ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
+        role: roleController.text.trim(),
+        startup: widget.initial?.startup ?? 'Soma Labs',
+        summary: summaryController.text.trim(),
+        location: 'Kigali · $arrangement',
+        commitment: 'Flexible',
+        skills: skills,
+        match: 80,
+        color: UnfoldColors.cyan,
+        ownerId: widget.initial?.ownerId ?? '',
+        isPaid: isPaid,
+        monthlyAmount: isPaid ? double.parse(amountController.text) : null,
+        currency: currency,
+      ),
+    );
+    if (mounted) setState(() => submitting = false);
+  }
+}
+
+class _OpportunityField extends StatelessWidget {
+  const _OpportunityField({
+    required this.controller,
+    required this.label,
+    required this.validator,
+    this.maxLines = 1,
+    this.keyboardType,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final String? Function(String?) validator;
+  final int maxLines;
+  final TextInputType? keyboardType;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.05),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: Colors.white12),
+        ),
+      ),
+    );
+  }
+}
+
+class _OpportunitySheet extends StatelessWidget {
+  const _OpportunitySheet({
+    required this.opportunity,
+    required this.applied,
+    required this.onApply,
+  });
+  final Opportunity opportunity;
+  final bool applied;
+  final VoidCallback onApply;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 80),
+      padding: const EdgeInsets.fromLTRB(22, 14, 22, 32),
+      decoration: const BoxDecoration(
+        color: Color(0xff10201d),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: ListView(
+          children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
+            Row(
+              children: [
+                _StartupLogo(opportunity: opportunity),
+                const SizedBox(width: 14),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      opportunity.startup,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.verified_rounded,
+                          size: 15,
+                          color: UnfoldColors.cyan,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          'Verified ALU startup',
+                          style: TextStyle(
+                            color: UnfoldColors.muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 26),
+            Text(
+              opportunity.role,
+              style: Theme.of(context).textTheme.displaySmall,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              opportunity.summary,
+              style: const TextStyle(color: UnfoldColors.muted, fontSize: 16),
+            ),
+            const SizedBox(height: 24),
+            _CompensationPill(opportunity: opportunity),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: opportunity.skills
+                  .map((skill) => _SkillChip(skill))
+                  .toList(),
+            ),
+            const SizedBox(height: 28),
+            Text(
+              'What you will build',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 12),
+            _Reason(
+              text:
+                  'Contribute to ${opportunity.startup} through real project work.',
+            ),
+            _Reason(
+              text:
+                  'Practice ${opportunity.skills.take(2).join(' and ')} with a small team.',
+            ),
+            _Reason(
+              text: '${opportunity.commitment} with clear learning outcomes.',
+            ),
+            const SizedBox(height: 30),
+            FilledButton(
+              onPressed: applied ? null : onApply,
+              style: FilledButton.styleFrom(
+                backgroundColor: UnfoldColors.mint,
+                foregroundColor: UnfoldColors.ink,
+                padding: const EdgeInsets.symmetric(vertical: 17),
+              ),
+              child: Text(
+                applied ? 'Application started' : 'Start application',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Reason extends StatelessWidget {
+  const _Reason({required this.text});
+  final String text;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(
+          Icons.check_circle_rounded,
+          size: 18,
+          color: UnfoldColors.cyan,
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(text, style: const TextStyle(color: UnfoldColors.muted)),
+        ),
+      ],
+    ),
+  );
+}
+
+class _SkillChip extends StatelessWidget {
+  const _SkillChip(this.label);
+  final String label;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: Colors.white12),
+    ),
+    child: Text(label, style: const TextStyle(fontSize: 12)),
+  );
+}
+
+class _SimplePage extends StatelessWidget {
+  const _SimplePage({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
+  final String title;
+  final String subtitle;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => ListView(
+    physics: const AlwaysScrollableScrollPhysics(),
+    padding: const EdgeInsets.fromLTRB(20, 28, 20, 128),
+    children: [
+      Text(title, style: Theme.of(context).textTheme.displaySmall),
+      const SizedBox(height: 7),
+      Text(subtitle, style: const TextStyle(color: UnfoldColors.muted)),
+      const SizedBox(height: 28),
+      child,
+    ],
+  );
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.icon, required this.message});
+  final IconData icon;
+  final String message;
+  @override
+  Widget build(BuildContext context) => GlassSurface(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 34),
+      child: Column(
+        children: [
+          Icon(icon, size: 38, color: UnfoldColors.muted),
+          const SizedBox(height: 13),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: UnfoldColors.muted),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.action});
+  final String title;
+  final String action;
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Text(title, style: Theme.of(context).textTheme.headlineSmall),
+      ),
+      Text(
+        action,
+        style: const TextStyle(
+          color: UnfoldColors.cyan,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ],
+  );
+}
+
+class _StartupLogo extends StatelessWidget {
+  const _StartupLogo({required this.opportunity});
+
+  final Opportunity opportunity;
+
+  static const assets = {
+    'Kayko': 'assets/logos/kayko.png',
+    'Rwazi': 'assets/logos/rwazi.png',
+    'Signvrse': 'assets/logos/signvrse.png',
+    'Plastic Venture': 'assets/logos/plastic-venture.png',
+    'Starlight': 'assets/logos/starlight.png',
+    'Smartel Agri-tech': 'assets/logos/smartel-agritech.png',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final asset = assets[opportunity.startup];
+    return Container(
+      width: 52,
+      height: 52,
+      padding: asset == null ? EdgeInsets.zero : const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: asset == null ? opportunity.color : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: asset != null
+          ? Image.asset(asset, fit: BoxFit.contain)
+          : Center(
+              child: Text(
+                _ventureMark(opportunity.startup),
+                style: const TextStyle(
+                  color: UnfoldColors.ink,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+class _CompensationPill extends StatelessWidget {
+  const _CompensationPill({required this.opportunity});
+
+  final Opportunity opportunity;
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = opportunity.monthlyAmount;
+    final label = opportunity.isPaid && amount != null
+        ? '${opportunity.currency} ${amount.toStringAsFixed(0)} / month'
+        : 'Unpaid';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: opportunity.isPaid
+            ? UnfoldColors.mint.withValues(alpha: .14)
+            : Colors.white.withValues(alpha: .06),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: opportunity.isPaid ? UnfoldColors.mint : UnfoldColors.muted,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _AmbientBackground extends StatelessWidget {
+  const _AmbientBackground();
+  @override
+  Widget build(BuildContext context) => Positioned.fill(
+    child: DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: RadialGradient(
+          center: Alignment(-0.8, -0.75),
+          radius: 1.15,
+          colors: [Color(0x334f4f57), UnfoldColors.ink],
+          stops: [0, 0.72],
+        ),
+      ),
+    ),
+  );
+}

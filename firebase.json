@@ -1,0 +1,27 @@
+{
+  "functions": { "source": "functions" },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": { "rules": "storage.rules" },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "unfold-f52a4",
+          "appId": "1:102184316559:android:9c100cefa65961e9f7cafa",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "unfold-f52a4",
+          "configurations": {
+            "android": "1:102184316559:android:9c100cefa65961e9f7cafa"
+          }
+        }
+      }
+    }
+  }
+}
