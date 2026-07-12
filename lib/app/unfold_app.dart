@@ -15,7 +15,9 @@ class UnfoldApp extends StatelessWidget {
       title: 'Unfold',
       debugShowCheckedModeBanner: false,
       theme: UnfoldTheme.dark,
-      home: demoAuthenticated ? const HomeShell() : const AuthGate(),
+      home: demoAuthenticated
+          ? const HomeShell(demoMode: true)
+          : const AuthGate(),
     );
   }
 }

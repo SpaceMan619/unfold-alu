@@ -4,8 +4,10 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_ai/firebase_ai.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../auth/session_controller.dart';
 
 enum CvAnalysisStage { empty, selected, analyzing, ready, failed }
 
@@ -31,9 +33,80 @@ class CvAnalysisState {
   bool get hasEvidence => stage == CvAnalysisStage.ready && skills.isNotEmpty;
 }
 
+abstract interface class CvAnalysisPersistence {
+  Stream<CvAnalysisState?> watch(String uid);
+  Future<void> save(String uid, CvAnalysisState analysis);
+  Future<void> clear(String uid);
+}
+
+class FirestoreCvAnalysisPersistence implements CvAnalysisPersistence {
+  FirestoreCvAnalysisPersistence(this.firestore);
+
+  final FirebaseFirestore firestore;
+
+  @override
+  Stream<CvAnalysisState?> watch(String uid) =>
+      firestore.collection('users').doc(uid).snapshots().map((snapshot) {
+        final data = snapshot.data();
+        final summary = data?['cvSummary'] as String? ?? '';
+        final skills = List<String>.from(data?['skills'] as List? ?? const []);
+        final roles = List<String>.from(
+          data?['cvSuggestedRoles'] as List? ?? const [],
+        );
+        final fileName = data?['cvFileName'] as String?;
+        if (summary.isEmpty && roles.isEmpty && fileName == null) return null;
+        return CvAnalysisState(
+          stage: CvAnalysisStage.ready,
+          fileName: fileName,
+          skills: skills,
+          suggestedRoles: roles,
+          summary: summary,
+        );
+      });
+
+  @override
+  Future<void> save(String uid, CvAnalysisState analysis) =>
+      firestore.collection('users').doc(uid).set({
+        'skills': analysis.skills,
+        'cvSuggestedRoles': analysis.suggestedRoles,
+        'cvSummary': analysis.summary,
+        'cvFileName': analysis.fileName,
+        'cvAnalyzedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+  @override
+  Future<void> clear(String uid) => firestore.collection('users').doc(uid).set({
+    'cvSuggestedRoles': FieldValue.delete(),
+    'cvSummary': FieldValue.delete(),
+    'cvFileName': FieldValue.delete(),
+    'cvAnalyzedAt': FieldValue.delete(),
+  }, SetOptions(merge: true));
+}
+
+final cvAnalysisPersistenceProvider = Provider<CvAnalysisPersistence?>((ref) {
+  if (Firebase.apps.isEmpty) return null;
+  return FirestoreCvAnalysisPersistence(FirebaseFirestore.instance);
+});
+
+final cvUserIdProvider = Provider<String>(
+  (ref) => ref.watch(sessionProvider.select((session) => session.uid)),
+);
+
 class CvAnalysisController extends Notifier<CvAnalysisState> {
   @override
-  CvAnalysisState build() => const CvAnalysisState();
+  CvAnalysisState build() {
+    final persistence = ref.watch(cvAnalysisPersistenceProvider);
+    final uid = ref.watch(cvUserIdProvider);
+    if (persistence != null && uid.isNotEmpty) {
+      final subscription = persistence.watch(uid).listen((saved) {
+        if (saved != null && state.stage == CvAnalysisStage.empty) {
+          state = saved;
+        }
+      });
+      ref.onDispose(subscription.cancel);
+    }
+    return const CvAnalysisState();
+  }
 
   Future<void> selectCv() async {
     final result = await FilePicker.pickFiles(
@@ -109,15 +182,7 @@ class CvAnalysisController extends Notifier<CvAnalysisState> {
         suggestedRoles: roles,
         summary: summary,
       );
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid != null) {
-        await FirebaseFirestore.instance.collection('users').doc(uid).set({
-          'skills': skills,
-          'cvSuggestedRoles': roles,
-          'cvSummary': summary,
-          'cvAnalyzedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
+      await _save();
     } catch (_) {
       state = CvAnalysisState(
         stage: CvAnalysisStage.failed,
@@ -128,7 +193,33 @@ class CvAnalysisController extends Notifier<CvAnalysisState> {
     }
   }
 
-  void removeCv() => state = const CvAnalysisState();
+  Future<void> removeSkill(String skill) async {
+    final current = state;
+    if (current.stage != CvAnalysisStage.ready) return;
+    state = CvAnalysisState(
+      stage: current.stage,
+      fileName: current.fileName,
+      skills: current.skills.where((item) => item != skill).toList(),
+      suggestedRoles: current.suggestedRoles,
+      summary: current.summary,
+    );
+    await _save();
+  }
+
+  Future<void> removeCv() async {
+    state = const CvAnalysisState();
+    final persistence = ref.read(cvAnalysisPersistenceProvider);
+    final uid = ref.read(cvUserIdProvider);
+    if (persistence != null && uid.isNotEmpty) await persistence.clear(uid);
+  }
+
+  Future<void> _save() async {
+    final persistence = ref.read(cvAnalysisPersistenceProvider);
+    final uid = ref.read(cvUserIdProvider);
+    if (persistence != null && uid.isNotEmpty) {
+      await persistence.save(uid, state);
+    }
+  }
 }
 
 final cvAnalysisProvider =

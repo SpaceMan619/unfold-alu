@@ -32,21 +32,25 @@ class OpportunityActivity {
     required this.opportunities,
     this.savedIds = const {},
     this.appliedIds = const {},
+    this.applications = const [],
   });
 
   final List<Opportunity> opportunities;
   final Set<String> savedIds;
   final Set<String> appliedIds;
+  final List<OpportunityApplication> applications;
 
   OpportunityActivity copyWith({
     List<Opportunity>? opportunities,
     Set<String>? savedIds,
     Set<String>? appliedIds,
+    List<OpportunityApplication>? applications,
   }) {
     return OpportunityActivity(
       opportunities: opportunities ?? this.opportunities,
       savedIds: savedIds ?? this.savedIds,
       appliedIds: appliedIds ?? this.appliedIds,
+      applications: applications ?? this.applications,
     );
   }
 }
@@ -72,11 +76,12 @@ class OpportunityActivityController extends Notifier<OpportunityActivity> {
     final bookmarkRepository = ref.watch(bookmarkRepositoryProvider);
     if (bookmarkRepository != null) {
       final bookmarkSession = ref.watch(applicationSessionProvider);
-      if (bookmarkSession.uid.isEmpty) return initial;
-      final bookmarkSubscription = bookmarkRepository
-          .watch(bookmarkSession.uid)
-          .listen((ids) => state = state.copyWith(savedIds: ids));
-      ref.onDispose(bookmarkSubscription.cancel);
+      if (bookmarkSession.uid.isNotEmpty) {
+        final bookmarkSubscription = bookmarkRepository
+            .watch(bookmarkSession.uid)
+            .listen((ids) => state = state.copyWith(savedIds: ids));
+        ref.onDispose(bookmarkSubscription.cancel);
+      }
     }
     if (applicationRepository == null) return initial;
     final session = ref.watch(applicationSessionProvider);
@@ -85,8 +90,10 @@ class OpportunityActivityController extends Notifier<OpportunityActivity> {
           .watchForStudent(session.uid)
           .listen((applications) {
             state = state.copyWith(
+              applications: applications,
               appliedIds: applications
                   .map((application) => application.opportunityId)
+                  .where((id) => id.isNotEmpty)
                   .toSet(),
             );
           });
@@ -119,7 +126,6 @@ class OpportunityActivityController extends Notifier<OpportunityActivity> {
 
   Future<void> apply(Object value) async {
     final id = value is Opportunity ? value.id : value.toString();
-    state = state.copyWith(appliedIds: {...state.appliedIds, id});
     Opportunity? opportunity;
     if (value is Opportunity) {
       opportunity = value;
@@ -144,10 +150,10 @@ class OpportunityActivityController extends Notifier<OpportunityActivity> {
     String portfolioUrl = '',
   }) async {
     final id = opportunity.id;
-    state = state.copyWith(appliedIds: {...state.appliedIds, id});
     final repository = ref.read(applicationRepositoryProvider);
     final session = ref.read(applicationSessionProvider);
     if (repository == null || session.uid.isEmpty) return;
+    state = state.copyWith(appliedIds: {...state.appliedIds, id});
     final application = OpportunityApplication(
       id: '${session.uid}_$id',
       opportunityId: id,
@@ -168,6 +174,12 @@ class OpportunityActivityController extends Notifier<OpportunityActivity> {
     );
     try {
       await repository.submit(application);
+      state = state.copyWith(
+        applications: [
+          ...state.applications.where((item) => item.opportunityId != id),
+          application,
+        ],
+      );
     } catch (_) {
       final next = {...state.appliedIds}..remove(id);
       state = state.copyWith(appliedIds: next);

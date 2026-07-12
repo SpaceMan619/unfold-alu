@@ -362,4 +362,74 @@ const sourcedVentureOpportunitySeeds = [
       currency: 'RWF',
     ),
   ),
+  VentureOpportunitySeed(
+    ventureName: 'Plastic Venture',
+    founders: ['Jimcale Faarah'],
+    sector: 'Climate and recycling',
+    publicDescription:
+        'A Hargeisa recycling startup that collects plastic and converts it into paving bricks.',
+    sourceUrl:
+        'https://www.alueducation.com/jimcales-journey-sustaining-the-dream-of-a-better-africa/',
+    aluConnection: 'Founded by an ALU student featured in an ALU impact story.',
+    opportunity: Opportunity(
+      id: 'demo-plastic-community-volunteer',
+      role: 'Community clean-up volunteer',
+      startup: 'Plastic Venture',
+      summary:
+          'Support a prototype community collection day and document its impact.',
+      location: 'Hargeisa · On-site',
+      commitment: 'One Saturday / month',
+      skills: ['Community service', 'Teamwork', 'Impact stories'],
+      match: 82,
+      color: Color(0xff68ddc9),
+      type: OpportunityType.volunteering,
+      contactEmail: 'volunteer.plasticventure@example.com',
+    ),
+  ),
+  VentureOpportunitySeed(
+    ventureName: 'Starlight',
+    founders: ['Alice Mukashyaka'],
+    sector: 'Clean energy',
+    publicDescription:
+        'A women-led model distributing locally made solar lanterns in Rwanda.',
+    sourceUrl: 'https://www.alueducation.com/own-your-future/',
+    aluConnection: 'Led by an ALU graduate featured on the ALU website.',
+    opportunity: Opportunity(
+      id: 'demo-starlight-outreach-volunteer',
+      role: 'Solar outreach volunteer',
+      startup: 'Starlight',
+      summary:
+          'Help prepare community learning materials for a prototype solar-light campaign.',
+      location: 'Rwanda · Hybrid',
+      commitment: '4 hrs / week',
+      skills: ['Outreach', 'Communication', 'Clean energy'],
+      match: 88,
+      color: Color(0xffffc66b),
+      type: OpportunityType.volunteering,
+      contactEmail: 'outreach.starlight@example.com',
+    ),
+  ),
+  VentureOpportunitySeed(
+    ventureName: 'Namirembe Sweater Makers',
+    founders: ['Noah Walakira'],
+    sector: 'Apparel and youth employment',
+    publicDescription:
+        'A community organization producing knitwear while training and employing young people.',
+    sourceUrl: 'https://www.alueducation.com/own-your-future/',
+    aluConnection: 'Founded by an ALU graduate featured on the ALU website.',
+    opportunity: Opportunity(
+      id: 'demo-namirembe-mentor-volunteer',
+      role: 'Youth skills volunteer',
+      startup: 'Namirembe Sweater Makers',
+      summary:
+          'Support a prototype digital-skills session for young community members.',
+      location: 'Uganda · Remote',
+      commitment: '3 hrs / week',
+      skills: ['Mentoring', 'Digital skills', 'Facilitation'],
+      match: 79,
+      color: Color(0xff9fa8ff),
+      type: OpportunityType.volunteering,
+      contactEmail: 'community.namirembe@example.com',
+    ),
+  ),
 ];

@@ -15,16 +15,17 @@ Its differentiator is **explainable CV discovery**: a student can select a PDF C
 - Student and founder role selection and onboarding
 - Firestore-backed user profiles
 - Real-time Firestore opportunity feed with sourced prototype seed content as fallback
-- Search and category filters
+- Search plus category, compensation, and volunteering filters
 - Opportunity details, save state, and application form
-- Firestore-backed student applications and founder status updates
-- Founder opportunity publishing
+- Firestore-backed applications with submitted, reviewing, shortlisted, accepted, and rejected progress
+- Founder opportunity publishing with type, compensation, currency, and contact email
 - On-device PDF selection with an 8 MB limit and Firebase AI Logic analysis
 - Riverpod state management
 - Firestore security rules and indexes
 - Widget, controller, model, and form tests
 - Explicit paid/unpaid listings with RWF or USD monthly compensation
-- Social-style profile with editable skills/interests and a bounded, cropped photo
+- Social-style profile with editable bio, location, class year, link, skills/interests, and a bounded cropped photo
+- Rotating home messages, time-aware greetings, profile shortcut, and custom Unfold launcher/splash branding
 - Pull-to-refresh across student and founder pages
 
 ### Deliberate prototype boundaries
@@ -109,10 +110,10 @@ To select a device and build the submission-sized release APK:
 
 ```bash
 flutter run -d <device-id>
-flutter build apk --release
+flutter build apk --release --split-per-abi
 ```
 
-The APK is generated at `build/app/outputs/flutter-apk/app-release.apk`.
+For a modern Android phone, use `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`. The ABI-specific build keeps the shareable APK close to 22 MB without reducing visual quality.
 
 ## Firebase setup
 
@@ -165,19 +166,19 @@ Fallback venture names and public founder information were assembled from public
 
 Citations and usage constraints are in [docs/DEMO_DATA_SOURCES.md](docs/DEMO_DATA_SOURCES.md).
 
-Venture logos are stored in `assets/logos`; attribution and source notes are documented alongside them.
+Venture logos are stored in `assets/logos`; attribution and source notes are documented alongside them. The Founder Studio community photograph was supplied in the project review folder; its original publication rights should be confirmed before any production release.
 
 ## Privacy and responsible AI
 
 CVs contain personal data. This prototype:
 
-- obtain explicit consent before upload and analysis;
+- asks the student to deliberately select a document before analysis;
 - uses Firebase AI Logic rather than embedding a provider secret;
 - accepts PDF files only and rejects files larger than 8 MB;
 - does not retain the original document in cloud storage;
-- show extracted skills for review and correction;
-- explain matches without allowing AI to accept or reject applicants;
-- provide a manual fallback when analysis is unavailable.
+- shows extracted skills for review, removal, and correction;
+- explains matches without allowing AI to accept or reject applicants;
+- provides a manual profile fallback when analysis is unavailable.
 
 For production, the project would also need a complete consent screen, retention policy, abuse controls, and independent security review.
 

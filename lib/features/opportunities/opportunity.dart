@@ -1,5 +1,23 @@
 import 'package:flutter/material.dart';
 
+enum OpportunityType {
+  internship('internship'),
+  job('job'),
+  volunteering('volunteering'),
+  project('project');
+
+  const OpportunityType(this.value);
+
+  final String value;
+
+  static OpportunityType fromValue(Object? value) {
+    return OpportunityType.values.firstWhere(
+      (type) => type.value == value,
+      orElse: () => OpportunityType.internship,
+    );
+  }
+}
+
 class Opportunity {
   const Opportunity({
     required this.id,
@@ -15,6 +33,8 @@ class Opportunity {
     this.isPaid = false,
     this.monthlyAmount,
     this.currency = 'RWF',
+    this.type = OpportunityType.internship,
+    this.contactEmail = '',
   });
 
   final String id;
@@ -30,6 +50,10 @@ class Opportunity {
   final bool isPaid;
   final double? monthlyAmount;
   final String currency;
+  final OpportunityType type;
+  final String contactEmail;
+
+  bool get isVolunteering => type == OpportunityType.volunteering;
 
   factory Opportunity.fromMap(String id, Map<String, dynamic> map) {
     return Opportunity(
@@ -46,6 +70,8 @@ class Opportunity {
       isPaid: map['isPaid'] as bool? ?? false,
       monthlyAmount: (map['monthlyAmount'] as num?)?.toDouble(),
       currency: map['currency'] as String? ?? 'RWF',
+      type: OpportunityType.fromValue(map['opportunityType']),
+      contactEmail: map['contactEmail'] as String? ?? '',
     );
   }
 
@@ -61,6 +87,8 @@ class Opportunity {
       'isPaid': isPaid,
       'monthlyAmount': monthlyAmount,
       'currency': currency,
+      'opportunityType': type.value,
+      'contactEmail': contactEmail,
     };
   }
 }

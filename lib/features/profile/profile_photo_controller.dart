@@ -22,10 +22,21 @@ final profilePhotoBytesProvider = StreamProvider<Uint8List?>((ref) {
 });
 
 class PublicProfile {
-  const PublicProfile({this.skills = const [], this.interests = const []});
+  const PublicProfile({
+    this.skills = const [],
+    this.interests = const [],
+    this.bio = '',
+    this.location = 'Kigali, Rwanda',
+    this.classYear = 2027,
+    this.website = '',
+  });
 
   final List<String> skills;
   final List<String> interests;
+  final String bio;
+  final String location;
+  final int classYear;
+  final String website;
 }
 
 final publicProfileProvider = StreamProvider<PublicProfile>((ref) {
@@ -40,6 +51,10 @@ final publicProfileProvider = StreamProvider<PublicProfile>((ref) {
         return PublicProfile(
           skills: List<String>.from(data['skills'] as List? ?? const []),
           interests: List<String>.from(data['interests'] as List? ?? const []),
+          bio: data['bio'] as String? ?? '',
+          location: data['location'] as String? ?? 'Kigali, Rwanda',
+          classYear: (data['classYear'] as num?)?.toInt() ?? 2027,
+          website: data['website'] as String? ?? '',
         );
       });
 });
@@ -53,12 +68,20 @@ class PublicProfileEditor {
   Future<void> save({
     required List<String> skills,
     required List<String> interests,
+    required String bio,
+    required String location,
+    required int classYear,
+    required String website,
   }) async {
     final uid = ref.read(sessionProvider).uid;
     if (uid.isEmpty) return;
     await FirebaseFirestore.instance.collection('users').doc(uid).set({
       'skills': skills,
       'interests': interests,
+      'bio': bio.trim(),
+      'location': location.trim(),
+      'classYear': classYear,
+      'website': website.trim(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
