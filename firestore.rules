@@ -18,13 +18,6 @@ service cloud.firestore {
       return signedIn() && user().data.role == 'admin';
     }
 
-    function hasVerifiedStartup() {
-      return isFounder()
-        && exists(/databases/$(database)/documents/startups/$(request.auth.uid))
-        && get(/databases/$(database)/documents/startups/$(request.auth.uid)).data.ownerId == request.auth.uid
-        && get(/databases/$(database)/documents/startups/$(request.auth.uid)).data.verificationStatus == 'verified';
-    }
-
     function hasAluEmail() {
       return signedIn()
         && request.auth.token.email.matches('.*@(alustudent\\.com|alueducation\\.com)$');
@@ -52,7 +45,7 @@ service cloud.firestore {
 
     match /opportunities/{opportunityId} {
       allow read: if signedIn();
-      allow create: if hasVerifiedStartup()
+      allow create: if signedIn()
         && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if isAdmin()
         || (isFounder() && resource.data.ownerId == request.auth.uid

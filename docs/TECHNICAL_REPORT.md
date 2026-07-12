@@ -9,7 +9,7 @@
 
 ## Abstract
 
-Unfold is a role-aware mobile opportunity platform designed for the African Leadership University (ALU) community. It connects students seeking practical experience with student-led ventures seeking early talent. The implemented application supports ALU-restricted authentication, student and founder journeys, opportunity discovery, search and category filtering, saving, application submission, founder-side applicant review, and application-status changes. Flutter provides the cross-platform interface, Riverpod coordinates application state, and Firebase Authentication and Cloud Firestore provide identity and persistent, real-time data. A lightweight Liquid Glass-inspired design system gives the product a distinctive visual identity while retaining readable contrast and touch-friendly controls. The project also includes a clearly marked scaffold for future CV-assisted matching; document selection is implemented, but AI analysis is not presented as complete. This report explains the product decisions, architecture, security model, testing, limitations, and route to scale.
+Unfold is a role-aware mobile opportunity platform designed for the African Leadership University (ALU) community. It connects students seeking practical experience with student-led ventures seeking early talent. The implemented application supports ALU-restricted authentication, student and founder journeys, opportunity discovery, compensation filtering, saving, application submission, founder-side publishing and applicant review, and application-status changes. Flutter provides the interface, Riverpod coordinates state, and Firebase Authentication and Cloud Firestore provide identity and persistent, real-time data. Firebase AI Logic reads a locally selected PDF with Gemini and stores only structured skills, suggested roles, and a summary. A lightweight glass-inspired design retains readable contrast and smooth scrolling.
 
 ## 1. Problem and Context
 
@@ -138,7 +138,7 @@ erDiagram
 
 Firestore Security Rules enforce authorization at the backend, not merely in hidden UI [5]. Users may create only their own ALU-domain profile. A user's role cannot be changed through normal profile updates. Opportunity creation requires a founder, while mutation requires either the owning founder or an administrator. An application may be created only by its student and only in `submitted` state. For live opportunities, the rule verifies that the submitted `founderId` equals the opportunity's `ownerId`. Only that founder or an administrator can change status, and immutable relationship fields must remain unchanged. Students can delete only their own application. Bookmark access is limited to the matching user ID.
 
-Storage rules reserve private paths under `users/{uid}/cvs/` with a 10 MB PDF limit, profile images with a 2 MB post-processing limit, and startup assets with a 5 MB limit. The profile picker rejects source images above 8 MB, center-crops to 1024 × 1024, compresses to JPEG, uploads the result, and stores its download URL in the user document. The Firebase project's Storage product still requires its one-time Console activation before this upload can succeed. PDF upload to Firebase Storage is not yet connected to the interface; the current CV control selects a local PDF only.
+Cloud Storage is not required by the final workflow because the Spark plan does not provide bucket access. The profile picker rejects source images above 8 MB, center-crops to 384 × 384, compresses the avatar below 500 KB, and stores it in the authenticated Firestore user document. CV bytes remain local and are sent directly to Firebase AI Logic; only the structured result is persisted.
 
 Indexes are declared for opportunity status/creation time and application student/creation time. The present queries do not all sort by creation time, but the indexes anticipate ordered feeds.
 
@@ -193,13 +193,13 @@ Other scaling measures include:
 
 The first challenge was balancing a distinctive interface with a short delivery window. A reusable glass primitive and repeated spacing/color tokens produced consistency faster than individually styling every card. The second was avoiding UI-only authorization. Role-aware navigation improves usability, but Firestore rules remain the actual security boundary. The third was integrating Google authentication on Android. Correct Firebase Android configuration and provider setup were required in addition to Flutter code.
 
-The most important architectural lesson was to separate state from persistence. Optimistic controllers create a responsive experience, while repositories contain backend details and make unit testing possible. Another lesson was to distinguish “prepared” from “implemented”: storage rules and CV states can support a future feature, but they do not make AI analysis complete.
+The most important architectural lesson was to separate state from persistence. Optimistic controllers create a responsive experience, while repositories contain backend details and make unit testing possible. Physical-device testing also drove two practical changes: repeated backdrop blur was removed for smooth scrolling, and Storage-dependent features were redesigned around Firestore and direct Firebase AI Logic calls.
 
 ## 10. Limitations and Future Work
 
 The current build has important limitations:
 
-1. CV intelligence is a scaffold. A user can select or remove a PDF, but it is not uploaded or analyzed.
+1. CV intelligence requires the Firebase AI Logic Gemini Developer API and App Check to be enabled in the project console.
 2. Match scoring is intentionally locked until profile evidence exists. No AI-generated ranking is claimed.
 3. Startup verification is handled in Firebase Console; a dedicated administrator mobile screen is not implemented.
 4. Bookmark persistence has a local fallback, but production offline reconciliation deserves broader testing.

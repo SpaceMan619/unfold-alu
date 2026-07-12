@@ -169,7 +169,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     ref.invalidate(opportunityActivityProvider);
     ref.invalidate(applicationReviewProvider);
     ref.invalidate(startupProvider);
-    ref.invalidate(profilePhotoUrlProvider);
+    ref.invalidate(profilePhotoBytesProvider);
     await Future<void>.delayed(const Duration(milliseconds: 650));
   }
 
@@ -304,6 +304,7 @@ class _DiscoverView extends StatefulWidget {
 class _DiscoverViewState extends State<_DiscoverView> {
   String query = '';
   String category = 'All';
+  String compensation = 'All';
 
   List<Opportunity> get filteredOpportunities {
     return widget.opportunities.where((item) {
@@ -316,7 +317,11 @@ class _DiscoverViewState extends State<_DiscoverView> {
       final matchesQuery = query.isEmpty || haystack.contains(query);
       final matchesCategory =
           category == 'All' || _categoryFor(item) == category;
-      return matchesQuery && matchesCategory;
+      final matchesCompensation =
+          compensation == 'All' ||
+          (compensation == 'Paid' && item.isPaid) ||
+          (compensation == 'Unpaid' && !item.isPaid);
+      return matchesQuery && matchesCategory && matchesCompensation;
     }).toList();
   }
 
@@ -365,20 +370,38 @@ class _DiscoverViewState extends State<_DiscoverView> {
           style: Theme.of(context).textTheme.displaySmall,
         ),
         const SizedBox(height: 22),
-        GlassSurface(
-          radius: 24,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-          child: TextField(
-            onChanged: (value) =>
-                setState(() => query = value.trim().toLowerCase()),
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              icon: Icon(Icons.search_rounded, color: UnfoldColors.muted),
-              hintText: 'Search roles, skills, or startups',
-              hintStyle: TextStyle(color: UnfoldColors.muted),
-              suffixIcon: Icon(Icons.tune_rounded, color: UnfoldColors.mint),
+        Stack(
+          alignment: Alignment.centerRight,
+          children: [
+            GlassSurface(
+              radius: 24,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+              child: TextField(
+                onChanged: (value) =>
+                    setState(() => query = value.trim().toLowerCase()),
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  icon: Icon(Icons.search_rounded, color: UnfoldColors.muted),
+                  hintText: 'Search roles, skills, or startups',
+                  hintStyle: TextStyle(color: UnfoldColors.muted),
+                  suffixIcon: SizedBox(width: 42),
+                ),
+              ),
             ),
-          ),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: IconButton(
+                tooltip: 'Filter opportunities',
+                onPressed: _showFilters,
+                icon: Icon(
+                  Icons.tune_rounded,
+                  color: compensation == 'All'
+                      ? UnfoldColors.mint
+                      : UnfoldColors.amber,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 14),
         SingleChildScrollView(
@@ -418,6 +441,35 @@ class _DiscoverViewState extends State<_DiscoverView> {
         ),
       ],
     );
+  }
+
+  Future<void> _showFilters() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: UnfoldColors.surface,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              title: Text('Compensation'),
+              subtitle: Text('Show paid, unpaid, or every opportunity.'),
+            ),
+            for (final option in ['All', 'Paid', 'Unpaid'])
+              ListTile(
+                title: Text(option),
+                trailing: compensation == option
+                    ? const Icon(Icons.check_rounded)
+                    : null,
+                onTap: () => Navigator.pop(context, option),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (selected != null) setState(() => compensation = selected);
   }
 }
 
@@ -859,7 +911,7 @@ class _ProfileView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionProvider);
     final cv = ref.watch(cvAnalysisProvider);
-    final photoUrl = ref.watch(profilePhotoUrlProvider).value;
+    final photoBytes = ref.watch(profilePhotoBytesProvider).value;
     final publicProfile =
         ref.watch(publicProfileProvider).value ?? const PublicProfile();
     final initials = session.name
@@ -909,10 +961,10 @@ class _ProfileView extends ConsumerWidget {
                 child: CircleAvatar(
                   radius: 45,
                   backgroundColor: UnfoldColors.amber,
-                  backgroundImage: photoUrl == null
+                  backgroundImage: photoBytes == null
                       ? null
-                      : NetworkImage(photoUrl),
-                  child: photoUrl == null
+                      : MemoryImage(photoBytes),
+                  child: photoBytes == null
                       ? Text(
                           initials.isEmpty ? 'U' : initials,
                           style: const TextStyle(
@@ -1086,7 +1138,7 @@ class _ProfileView extends ConsumerWidget {
                 child: FilledButton.tonalIcon(
                   onPressed: onSwitch,
                   icon: const Icon(Icons.swap_horiz_rounded),
-                  label: const Text('Preview founder experience'),
+                  label: const Text('Switch to founder studio'),
                 ),
               ),
               SizedBox(
@@ -1265,30 +1317,92 @@ class _CvIntelligenceCard extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            cv.stage == CvAnalysisStage.selected
+            cv.stage == CvAnalysisStage.selected ||
+                    cv.stage == CvAnalysisStage.analyzing
                 ? cv.fileName ?? 'CV selected'
+                : cv.stage == CvAnalysisStage.ready
+                ? cv.summary
                 : 'Upload your CV to build an editable skills profile and unlock explainable matches.',
             style: const TextStyle(color: UnfoldColors.muted),
           ),
           const SizedBox(height: 16),
           if (cv.stage == CvAnalysisStage.selected)
-            Row(
+            Column(
               children: [
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: UnfoldColors.mint,
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: UnfoldColors.mint,
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'PDF ready for private analysis',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () =>
+                          ref.read(cvAnalysisProvider.notifier).removeCv(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Ready for secure analysis',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () =>
+                        ref.read(cvAnalysisProvider.notifier).analyze(),
+                    icon: const Icon(Icons.auto_awesome_rounded),
+                    label: const Text('Analyze CV with AI'),
                   ),
                 ),
-                IconButton(
+              ],
+            )
+          else if (cv.stage == CvAnalysisStage.analyzing)
+            const Row(
+              children: [
+                SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 12),
+                Text('Reading your CV…'),
+              ],
+            )
+          else if (cv.stage == CvAnalysisStage.ready)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: cv.skills.map(_SkillChip.new).toList(),
+                ),
+                if (cv.suggestedRoles.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Text(
+                    'Suggested: ${cv.suggestedRoles.join(' · ')}',
+                    style: const TextStyle(color: UnfoldColors.cyan),
+                  ),
+                ],
+              ],
+            )
+          else if (cv.stage == CvAnalysisStage.failed)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  cv.error ?? 'Analysis failed.',
+                  style: const TextStyle(color: Colors.redAccent),
+                ),
+                const SizedBox(height: 10),
+                TextButton(
                   onPressed: () =>
-                      ref.read(cvAnalysisProvider.notifier).removeCv(),
-                  icon: const Icon(Icons.close_rounded),
+                      ref.read(cvAnalysisProvider.notifier).selectCv(),
+                  child: const Text('Choose another PDF'),
                 ),
               ],
             )
@@ -1323,7 +1437,6 @@ class _FounderDashboard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final applications = ref.watch(applicationReviewProvider);
-    final startup = ref.watch(startupProvider);
     final session = ref.watch(applicationSessionProvider);
     final opportunities = ref
         .watch(opportunityActivityProvider)
@@ -1364,12 +1477,13 @@ class _FounderDashboard extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 24),
-        _StartupVerificationCard(state: startup),
-        const SizedBox(height: 14),
         Row(
           children: [
             Expanded(
-              child: const _MetricCard(value: '3', label: 'Live roles'),
+              child: _MetricCard(
+                value: '${opportunities.length}',
+                label: 'Live roles',
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1459,7 +1573,7 @@ class _FounderDashboard extends ConsumerWidget {
           ],
         const SizedBox(height: 18),
         FilledButton.icon(
-          onPressed: startup.profile?.isVerified == true ? onCreate : null,
+          onPressed: onCreate,
           icon: const Icon(Icons.add_rounded),
           label: const Text('Create opportunity'),
           style: FilledButton.styleFrom(
@@ -1473,8 +1587,8 @@ class _FounderDashboard extends ConsumerWidget {
   }
 }
 
-class _StartupVerificationCard extends ConsumerWidget {
-  const _StartupVerificationCard({required this.state});
+class StartupVerificationCard extends ConsumerWidget {
+  const StartupVerificationCard({required this.state, super.key});
   final StartupState state;
 
   @override
@@ -1839,6 +1953,7 @@ class _CreateOpportunitySheet extends StatefulWidget {
 
 class _CreateOpportunitySheetState extends State<_CreateOpportunitySheet> {
   final formKey = GlobalKey<FormState>();
+  final startupController = TextEditingController();
   final roleController = TextEditingController();
   final summaryController = TextEditingController();
   final skillsController = TextEditingController();
@@ -1853,6 +1968,7 @@ class _CreateOpportunitySheetState extends State<_CreateOpportunitySheet> {
     super.initState();
     final initial = widget.initial;
     if (initial != null) {
+      startupController.text = initial.startup;
       roleController.text = initial.role;
       summaryController.text = initial.summary;
       skillsController.text = initial.skills.join(', ');
@@ -1864,6 +1980,7 @@ class _CreateOpportunitySheetState extends State<_CreateOpportunitySheet> {
 
   @override
   void dispose() {
+    startupController.dispose();
     roleController.dispose();
     summaryController.dispose();
     skillsController.dispose();
@@ -1913,6 +2030,12 @@ class _CreateOpportunitySheetState extends State<_CreateOpportunitySheet> {
                 style: TextStyle(color: UnfoldColors.muted),
               ),
               const SizedBox(height: 22),
+              _OpportunityField(
+                controller: startupController,
+                label: 'Startup or venture name',
+                validator: _required,
+              ),
+              const SizedBox(height: 12),
               _OpportunityField(
                 controller: roleController,
                 label: 'Role title',
@@ -2028,7 +2151,7 @@ class _CreateOpportunitySheetState extends State<_CreateOpportunitySheet> {
             widget.initial?.id ??
             DateTime.now().microsecondsSinceEpoch.toString(),
         role: roleController.text.trim(),
-        startup: widget.initial?.startup ?? 'Soma Labs',
+        startup: startupController.text.trim(),
         summary: summaryController.text.trim(),
         location: 'Kigali · $arrangement',
         commitment: 'Flexible',
@@ -2196,7 +2319,7 @@ class _OpportunitySheet extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 17),
               ),
               child: Text(
-                applied ? 'Application started' : 'Start application',
+                applied ? 'Application submitted' : 'Start application',
               ),
             ),
           ],
@@ -2384,7 +2507,7 @@ class _CompensationPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final amount = opportunity.monthlyAmount;
     final label = opportunity.isPaid && amount != null
-        ? '${opportunity.currency} ${amount.toStringAsFixed(0)} / month'
+        ? '${opportunity.currency} ${_shortAmount(amount)} / month'
         : 'Unpaid';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
@@ -2404,6 +2527,13 @@ class _CompensationPill extends StatelessWidget {
       ),
     );
   }
+}
+
+String _shortAmount(double amount) {
+  if (amount >= 1000 && amount % 1000 == 0) {
+    return '${(amount / 1000).toStringAsFixed(0)}K';
+  }
+  return amount.toStringAsFixed(amount % 1 == 0 ? 0 : 2);
 }
 
 class _AmbientBackground extends StatelessWidget {

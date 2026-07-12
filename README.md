@@ -2,7 +2,9 @@
 
 Unfold is an Android-first Flutter application that connects African Leadership University students with opportunities from student- and alumni-led ventures. Students can discover roles, filter the opportunity feed, save listings, submit applications, and track progress. Founders can publish opportunities and review applicants from a role-aware workspace.
 
-Its planned differentiator is **explainable CV matching**: the interface supports PDF selection and deliberately withholds personalized scores until a student provides evidence. Automated CV analysis is scaffolded as a future service; it is not presented as completed AI.
+Its differentiator is **explainable CV discovery**: a student can select a PDF CV, let Firebase AI Logic extract a concise skills summary, review the result, and use those signals to understand which roles fit. The app never allows AI to submit or decide an application.
+
+![Unfold opportunity feed](docs/screenshots/final-home.png)
 
 ## Current status
 
@@ -17,20 +19,20 @@ Its planned differentiator is **explainable CV matching**: the interface support
 - Opportunity details, save state, and application form
 - Firestore-backed student applications and founder status updates
 - Founder opportunity publishing
-- PDF CV selection UI and CV-analysis state scaffold
+- On-device PDF selection with an 8 MB limit and Firebase AI Logic analysis
 - Riverpod state management
-- Firestore and Storage security rules
+- Firestore security rules and indexes
 - Widget, controller, model, and form tests
 - Explicit paid/unpaid listings with RWF or USD monthly compensation
-- Social-style external profile with bounded, cropped profile-photo upload
+- Social-style profile with editable skills/interests and a bounded, cropped photo
 - Pull-to-refresh across student and founder pages
 
-### Partial or planned
+### Deliberate prototype boundaries
 
 - Saved opportunities persist per user in Firestore, with optimistic UI and a local fallback when the backend is unavailable.
 - Opportunity repository methods support update and delete, but the current founder UI focuses on publishing.
-- Founders can submit startup profiles and publishing is gated by verification; verification itself is performed by an administrator in Firebase Console.
-- CV upload to Firebase Storage and server-side AI extraction are not implemented.
+- Founder Studio lets any authenticated user switch modes and publish a role; production moderation is out of scope.
+- CV files are processed directly from memory and are not retained in Firebase Storage. Only the extracted summary is saved to the user's Firestore profile.
 - Match scores in sourced fallback records are presentation fields. The UI does not expose them as personalized matches until CV/skill evidence exists.
 - FlutterFire configuration is Android-only.
 
@@ -51,7 +53,7 @@ Key choices:
 - **Riverpod** for session and feature state
 - **Firebase Authentication** for Google and email/password sign-in
 - **Cloud Firestore** for users, opportunities, and applications
-- **Firebase Storage** rules prepared for CVs and startup assets
+- **Firebase AI Logic** for multimodal PDF analysis without embedding an AI-provider key
 - Repository boundaries keep Firebase calls out of most widgets
 - Firebase streams update opportunity and application views in real time
 
@@ -76,7 +78,7 @@ lib/
 ├── features/
 │   ├── applications/       # form, model, repository, founder review
 │   ├── auth/               # Firebase auth and onboarding
-│   ├── cv/                 # PDF selection and AI-ready state scaffold
+│   ├── cv/                 # PDF validation and Firebase AI analysis
 │   ├── home/               # student/founder shells and screens
 │   └── opportunities/      # model, seed data, repository, controller
 ├── firebase_options.dart   # generated Android Firebase options
@@ -103,14 +105,14 @@ flutter test
 flutter run
 ```
 
-To select a device and build an APK:
+To select a device and build the submission-sized release APK:
 
 ```bash
 flutter run -d <device-id>
-flutter build apk --debug
+flutter build apk --release
 ```
 
-The APK is generated at `build/app/outputs/flutter-apk/app-debug.apk`.
+The APK is generated at `build/app/outputs/flutter-apk/app-release.apk`.
 
 ## Firebase setup
 
@@ -121,17 +123,26 @@ For another Firebase project:
 1. Register an Android app with package name `com.alu.unfold.unfold`.
 2. Enable **Authentication > Sign-in method > Email/Password** and **Google**.
 3. Add development/release SHA fingerprints required by Google sign-in.
-4. Create Cloud Firestore and Firebase Storage.
-5. Regenerate Android configuration and deploy rules:
+4. Create Cloud Firestore.
+5. Open **Firebase AI Logic**, choose the Gemini Developer API, and enable App Check. Development builds use the App Check debug provider; add the printed debug token in the Firebase console.
+6. Regenerate Android configuration and deploy rules:
 
 ```bash
 firebase login
 dart pub global activate flutterfire_cli
 flutterfire configure --platforms=android
-firebase deploy --only firestore:rules,firestore:indexes,storage
+firebase deploy --only firestore:rules,firestore:indexes
 ```
 
-6. Confirm `lib/firebase_options.dart`, `android/app/google-services.json`, `.firebaserc`, and `firebase.json` point to the intended project.
+7. Confirm `lib/firebase_options.dart`, `android/app/google-services.json`, `.firebaserc`, and `firebase.json` point to the intended project.
+
+For a local debug/release demonstration, add the registered App Check token to the ignored `android/local.properties` file:
+
+```properties
+app.check.debug.secret=your-registered-debug-token
+```
+
+Do not commit that value. The checked-in build configuration leaves it empty by default.
 
 Current Firestore rules restrict new database profiles to authenticated ALU addresses ending in `@alustudent.com` or `@alueducation.com`. Google sign-in performs the same domain check in the client.
 
@@ -154,22 +165,21 @@ Fallback venture names and public founder information were assembled from public
 
 Citations and usage constraints are in [docs/DEMO_DATA_SOURCES.md](docs/DEMO_DATA_SOURCES.md).
 
-No repository screenshot assets currently exist, so this README intentionally does not display placeholder or unrelated images.
+Venture logos are stored in `assets/logos`; attribution and source notes are documented alongside them.
 
-## Privacy and responsible AI roadmap
+## Privacy and responsible AI
 
-CVs contain personal data. A production CV-analysis release should:
+CVs contain personal data. This prototype:
 
 - obtain explicit consent before upload and analysis;
-- keep provider keys in a trusted backend such as Cloud Functions secrets;
-- validate file type/size and scan untrusted uploads;
-- minimize retention and let students delete original and extracted data;
+- uses Firebase AI Logic rather than embedding a provider secret;
+- accepts PDF files only and rejects files larger than 8 MB;
+- does not retain the original document in cloud storage;
 - show extracted skills for review and correction;
 - explain matches without allowing AI to accept or reject applicants;
-- document processing providers and retention terms;
 - provide a manual fallback when analysis is unavailable.
 
-The current code only selects a local PDF and models analysis states. It does not upload or send a CV to an AI provider.
+For production, the project would also need a complete consent screen, retention policy, abuse controls, and independent security review.
 
 ## Assignment context
 
