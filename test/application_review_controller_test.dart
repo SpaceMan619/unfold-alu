@@ -34,31 +34,10 @@ class FakeApplicationRepository implements ApplicationRepository {
 }
 
 void main() {
-  test('founder can update an application status', () {
+  test('founder has no fabricated applications without a repository', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
-
-    container
-        .read(applicationReviewProvider.notifier)
-        .updateStatus('application-amara', ApplicationStatus.shortlisted);
-
-    final application = container
-        .read(applicationReviewProvider)
-        .firstWhere((item) => item.application.id == 'application-amara');
-    expect(application.application.status, ApplicationStatus.shortlisted);
-    expect(container.read(applicationReviewProvider), hasLength(3));
-  });
-
-  test('unknown application update leaves demo data unchanged', () {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
-    final before = container.read(applicationReviewProvider);
-
-    container
-        .read(applicationReviewProvider.notifier)
-        .updateStatus('missing', ApplicationStatus.rejected);
-
-    expect(container.read(applicationReviewProvider), before);
+    expect(container.read(applicationReviewProvider), isEmpty);
   });
 
   test('founder watches and updates repository applications', () async {

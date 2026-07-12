@@ -2145,7 +2145,7 @@ class _StartupLogo extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: asset != null
-          ? Image.asset(asset, fit: BoxFit.contain)
+          ? Image.asset(asset, fit: BoxFit.contain, cacheWidth: 128)
           : Center(
               child: Text(
                 _ventureMark(opportunity.startup),
