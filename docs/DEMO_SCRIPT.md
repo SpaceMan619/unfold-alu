@@ -6,12 +6,12 @@ This script is paced for 9 minutes 30 seconds to 10 minutes. Do one practice rec
 
 - Install the final V1 APK and sign out.
 - Use an ALU Google account whose profile already contains a working CV analysis.
-- Keep one founder-owned opportunity with a real Firestore deadline and one application ready.
+- Keep one founder-owned opportunity with a real Firestore deadline and one application ready; use prepared records to stay on time.
 - Keep a small non-sensitive PDF CV ready. Hide private tabs and notifications.
 - Open Firebase Console to Authentication, `users`, `opportunities`, and `applications`.
 - Open `discover_view.dart`, `opportunity_match.dart`, and `opportunity_controller.dart` in VS Code.
 
-## 0:00-0:40 - Product and problem
+## 0:00-0:35 - Product and problem
 
 **Show:** Welcome screen.
 
@@ -19,7 +19,7 @@ This script is paced for 9 minutes 30 seconds to 10 minutes. Do one practice rec
 
 Point out the ALU image, rotating message, neutral visual identity, and reachable actions.
 
-## 0:40-1:25 - Authentication and session state
+## 0:35-1:05 - Authentication and session state
 
 **Show:** Continue with Google, account selection, restored session.
 
@@ -31,7 +31,7 @@ Point out the ALU image, rotating message, neutral visual identity, and reachabl
 
 **Do not open the code yet.** Keep the first half focused on the product.
 
-## 1:25-2:45 - Discovery, search, and UI reasoning
+## 1:05-1:55 - Discovery, search, and UI reasoning
 
 **Show:** Discover feed. Pull to refresh, search, select a category and paid filter, then open a role.
 
@@ -39,7 +39,7 @@ Point out the ALU image, rotating message, neutral visual identity, and reachabl
 
 "The design is glass-inspired rather than an iOS copy. I use a neutral base, static translucent layers, venture accent colors, large touch targets, and a draggable pill navigator. Physical-device testing showed that live blur and repeated number animations caused jitter, so version 1.0 uses static paint layers and static match rings."
 
-## 2:45-3:45 - Real deadlines and opportunity details
+## 1:55-2:25 - Real deadlines and opportunity details
 
 **Show:** A Firestore-backed role with a deadline, then Firebase Console `opportunities/{id}`.
 
@@ -47,7 +47,7 @@ Point out the ALU image, rotating message, neutral visual identity, and reachabl
 
 Point to `deadline` in Firebase Console and return to the detail sheet. Show skills, compensation, contact action, and related roles.
 
-## 3:45-4:50 - Saving and applying
+## 2:25-3:15 - Saving and applying
 
 **Show:** Save and unsave a role. Start an application, trigger validation, fill it, and submit.
 
@@ -57,7 +57,7 @@ Point to `deadline` in Firebase Console and return to the detail sheet. Show ski
 
 **Show:** Applications tab and the submitted item.
 
-## 4:50-5:55 - CV intelligence and explainable matching
+## 3:15-4:05 - CV intelligence and explainable matching
 
 **Show:** Profile -> CV Intelligence. Choose the prepared PDF, analyze, then remove one extracted skill.
 
@@ -67,11 +67,11 @@ Point to `deadline` in Firebase Console and return to the detail sheet. Show ski
 
 Return to Discover and show that the evidence affects match rings.
 
-## 5:55-7:00 - Founder Studio and CRUD
+## 4:05-4:45 - Founder Studio and CRUD
 
-**Show:** Profile role toggle -> Founder Studio. Create an opportunity with title, skills, paid/unpaid choice, amount/currency, email, and deadline.
+**Show:** Profile role toggle -> Founder Studio. Open a prepared opportunity with its paid/unpaid choice, amount/currency, email, and deadline.
 
-"Founder Studio demonstrates the same backend from the other side. Creating this role writes an owner-linked document. Paid roles require a positive monthly amount and RWF or USD. The founder can later edit, close, or remove their own listing."
+"Founder Studio demonstrates the same backend from the other side. Creating a role writes an owner-linked document. Paid roles require a positive monthly amount and RWF or USD. The founder can edit, close, or remove their own listing."
 
 Open applicant management, change a prepared applicant from submitted to reviewing or shortlisted, and tap email.
 
@@ -79,7 +79,7 @@ Open applicant management, change a prepared applicant from submitted to reviewi
 
 Finish the phone workflow before opening VS Code.
 
-## 7:00-7:35 - Firebase CRUD and security evidence
+## 4:45-5:25 - Firebase CRUD and security evidence
 
 **Show:** Firestore `opportunities` and `applications`; refresh the relevant document.
 
@@ -89,7 +89,7 @@ Finish the phone workflow before opening VS Code.
 
 "The UI is not the security boundary. A student may submit only as themselves and only with submitted status. For live opportunities, the founder ID must equal the opportunity owner. Only that owner or an administrator may change application status, and the relationship IDs cannot be replaced. Bookmark paths are private to their user."
 
-## 7:35-8:00 - Start the code walkthrough
+## 5:25-5:50 - Start the code walkthrough
 
 **Switch to VS Code now.** Use `Cmd + P` to open each file by its exact path. Do not browse the whole project tree during the recording.
 
@@ -101,7 +101,7 @@ Open `lib/features/opportunities/opportunity_controller.dart`.
 
 Say: "This controller combines the live opportunity stream with saved and applied state. Widgets call the controller instead of writing Firestore directly."
 
-## 8:00-9:05 - Architecture, state propagation, and optimization
+## 5:50-8:40 - Architecture, state propagation, and optimization
 
 **Show:** Architecture diagram, then relevant code.
 
@@ -127,7 +127,7 @@ Say: "This is the AI path: it limits the PDF, sends it through Firebase AI Logic
 
 Say: "This controller owns founder-side applicant state and performs an optimistic status update with rollback if Firebase rejects the write."
 
-## 9:05-9:45 - Testing, limitations, and conclusion
+## 8:40-9:45 - Testing, limitations, and conclusion
 
 **Show:** terminal results for `flutter analyze` and `flutter test`.
 
