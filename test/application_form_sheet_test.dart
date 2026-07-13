@@ -12,7 +12,6 @@ const opportunity = Opportunity(
   location: 'Kigali',
   commitment: 'Part-time',
   skills: ['Figma'],
-  match: 0,
   color: Color(0xff68ddc9),
 );
 

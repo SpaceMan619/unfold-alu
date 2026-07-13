@@ -4,13 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/backend/backend_config.dart';
 import '../auth/session_controller.dart';
 import 'application.dart';
 import 'application_repository.dart';
 
 final applicationRepositoryProvider = Provider<ApplicationRepository?>((ref) {
-  if (!BackendConfig.usesFirebase || Firebase.apps.isEmpty) return null;
+  if (Firebase.apps.isEmpty) return null;
   return FirestoreApplicationRepository(FirebaseFirestore.instance);
 });
 

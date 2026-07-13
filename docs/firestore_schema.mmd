@@ -1,21 +1,16 @@
 erDiagram
-    USERS ||--o{ STARTUPS : owns
+    USERS ||--o{ OPPORTUNITIES : publishes
     USERS ||--o{ APPLICATIONS : submits
     USERS ||--o{ BOOKMARK_ITEMS : saves
-    STARTUPS ||--o{ OPPORTUNITIES : publishes
     OPPORTUNITIES ||--o{ APPLICATIONS : receives
     USERS {
       string uid PK
       string name
       string email
       string role
-      timestamp createdAt
+      array skills
+      map cvAnalysis
       timestamp updatedAt
-    }
-    STARTUPS {
-      string startupId PK
-      string ownerId FK
-      string verificationStatus
     }
     OPPORTUNITIES {
       string opportunityId PK
@@ -23,18 +18,25 @@ erDiagram
       string role
       string startupName
       string status
+      bool isPaid
+      number monthlyAmount
+      string currency
+      timestamp deadline
       array skills
-      timestamp createdAt
     }
     APPLICATIONS {
       string applicationId PK
       string opportunityId FK
       string studentId FK
       string founderId FK
+      string motivation
+      string availability
       string status
+      bool isDemo
       timestamp createdAt
     }
     BOOKMARK_ITEMS {
       string userId FK
       string opportunityId FK
+      timestamp savedAt
     }

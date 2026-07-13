@@ -1,36 +1,61 @@
 # Unfold project guide
 
-Unfold connects ALU students with verified student-led ventures. Founders submit
-a startup profile, publish clearly paid or unpaid opportunities, and review
-applicants. Students discover roles, save them, apply, and track decisions.
+## Product
 
-## State flow
+Unfold connects ALU students with opportunities from student- and alumni-led
+ventures. Students discover, save, apply, and track. Founders publish roles and
+move applicants through a clear review pipeline.
 
-`SessionController` owns authentication and role state. Its models, state, and
-Firebase repository live in separate files while `session_controller.dart`
-keeps one stable import surface. Feature controllers own opportunities,
-bookmarks, applications, CV analysis, and profile-photo updates. Widgets read
-Riverpod providers; repositories isolate Firebase Authentication and Firestore
-access, while Firebase AI Logic handles local PDF analysis.
+## Data flow
 
-The home feature is split into focused views, sheets, and shared widgets under
-one Dart library. This keeps private UI helpers private without returning to a
-single multi-thousand-line screen file.
+```text
+view -> Riverpod controller -> repository -> Firebase
+```
+
+- `SessionController` restores authentication and the Firestore user profile.
+- `OpportunityActivityController` combines live roles, fallback roles,
+  bookmarks, and student applications.
+- `ApplicationReviewController` streams founder applicants and persists status
+  changes with optimistic rollback.
+- `CvAnalysisController` validates a local PDF, invokes Firebase AI Logic, and
+  stores editable structured evidence in the user document.
+- Repository interfaces isolate Firestore and make controller tests possible.
+
+The home library is divided into focused views, sheets, and widgets. Short-lived
+UI values such as search text remain local; shared and persistent state belongs
+to providers.
 
 ## Firebase data
 
-- `users`: role, public profile fields, compressed avatar, and CV analysis.
-- `startups`: founder-owned profiles and administrator verification status.
-- `opportunities`: role details, compensation, owner, skills, and status.
-- `applications`: form answers and founder-controlled review status.
-- `bookmarks/{userId}/items`: private saved opportunities.
+- `users/{uid}`: identity, public profile, compressed avatar, and CV analysis.
+- `opportunities/{id}`: owner, role, compensation, skills, status, and optional
+  deadline timestamp.
+- `applications/{id}`: student/founder relationship, form answers, and review
+  status.
+- `bookmarks/{uid}/items/{opportunityId}`: private saved roles.
 
-Bundled venture logos live in `assets/logos`. The profile header is a generated
-Flutter gradient, so it uses no storage. Sourced fallback opportunities keep an
-empty Firestore project useful without displaying placeholder language.
+Fallback roles are local presentation data. They never receive generated
+deadlines. A deadline appears only when it exists in a Firestore opportunity.
 
-## AI boundary
+## Matching
 
-PDF selection sends local bytes through Firebase AI Logic using the Gemini
-Developer API. No provider key is embedded in Flutter and no Storage bucket is
-required. App Check protects the direct client request.
+Firebase AI Logic converts a PDF into skills, suggested roles, and a summary.
+The local matcher compares normalized profile skills with each opportunity's
+skills. It produces a percentage and the exact matched/missing evidence shown in
+the interface. Results are cached until skills or opportunity data changes, and
+AI never makes an application decision.
+
+## Performance
+
+- Match rings use static custom paint rather than replaying animations.
+- Search text and match results are cached for the current opportunity dataset.
+- The rotating slogan owns its own widget state, so it does not rebuild the feed.
+- Glass depth uses static paint layers instead of live Android backdrop blur.
+- Images use bounded decode sizes and the release APK is split by ABI.
+
+## Presentation boundary
+
+Venture names and logos are sourced; fallback vacancies and demo applicants are
+fictional and identified as such. Real authentication, profiles, bookmarks,
+opportunities, applications, CV analysis, and founder status updates persist in
+Firebase.

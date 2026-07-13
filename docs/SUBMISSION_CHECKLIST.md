@@ -1,124 +1,79 @@
-# Unfold submission checklist
+# Unfold V1 Submission Checklist
 
-Use this as the final gate. Do not submit until every required item is checked or explicitly explained as a limitation.
+## Application
 
-## 1. Application quality
+- [ ] Install the exact final APK on a physical Android phone.
+- [ ] Test Google sign-in, restored session, refresh, search, filter, save/unsave, details, and application submission.
+- [ ] Analyze a non-sensitive PDF under 8 MB and verify editable skills affect matching.
+- [ ] Publish one founder opportunity with compensation and a deadline.
+- [ ] Change one applicant through the founder pipeline and verify persistence after restart.
+- [ ] Confirm fallback roles show no fabricated deadline.
+- [ ] Confirm portrait-only layout, profile editing, photo crop, logout, email links, and back/swipe sheet behavior.
 
-- [ ] Run the student journey on Android: sign in, browse, filter, open, apply, and track.
-- [ ] Run the founder journey: sign in, publish an opportunity, view an applicant, and update status.
-- [ ] Confirm Google sign-in accepts an authorized ALU account.
-- [ ] Confirm loading, empty, validation, and Firebase error states are readable.
-- [ ] Confirm no prototype-only feature is described as live.
-- [ ] Confirm sourced fallback vacancies are visibly identified as fictional where required.
-- [ ] Restart the app and verify Firebase-backed data still exists.
+## Source verification
 
-## 2. Code verification
-
-```bash
+```text
 flutter pub get
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
-flutter build apk --debug
+flutter build apk --release --target-platform android-arm64
 ```
 
 - [ ] Formatting passes.
 - [ ] Static analysis reports no issues.
 - [ ] All tests pass.
-- [ ] Android APK builds successfully.
-- [ ] The APK installs and opens on the presentation device/emulator.
+- [ ] Release ARM64 APK builds, installs, and opens.
+- [ ] `git status` contains only intentional submission files.
 
-Expected APK: `build/app/outputs/flutter-apk/app-debug.apk`.
+## Firebase Console evidence
 
-## 3. Firebase Console evidence
+- [ ] Authentication shows Google and Email/Password providers.
+- [ ] `users` contains the demo identity and structured CV result.
+- [ ] `opportunities` contains an app-created owner-linked record and timestamp deadline.
+- [ ] `applications` shows the submitted record and status update.
+- [ ] Firestore rules and indexes are deployed.
+- [ ] No service-account key, provider key, debug token, keystore, or `.env` secret is committed.
+- [ ] Recording hides passwords, tokens, private CV content, unrelated emails, and UIDs.
 
-- [ ] Open Firebase Storage once, click **Get started**, then run `firebase deploy --only storage`.
+Storage is not required for V1. Do not upgrade solely for this submission. Raw PDFs are not stored, and photos use the existing compressed profile path.
 
-- [ ] Authentication shows Email/Password and Google providers.
-- [ ] Student and founder users exist for the demo.
-- [ ] Firestore contains app-created `users`, `opportunities`, and `applications` documents.
-- [ ] A status update is visible in an application document.
-- [ ] Firestore rules/indexes and Storage rules are deployed.
-- [ ] No service-account key or AI-provider secret is committed.
-- [ ] Screenshots redact emails, UIDs, CVs, tokens, and credentials.
+## GitHub
 
-```bash
-firebase use
-firebase deploy --only firestore:rules,firestore:indexes,storage
-```
+- [ ] README describes only current features and boundaries.
+- [ ] Technical report, diagrams, script, study guide, rules, indexes, tests, and source are included.
+- [ ] Build output, local caches, secrets, and signing files are ignored.
+- [ ] Final V1 commit is pushed.
+- [ ] Repository URL opens for the assessor.
 
-## 4. GitHub repository
+## Technical report
 
-- [ ] Visibility matches the lecturer's instructions.
-- [ ] README, project guide, rules, indexes, tests, and source are included.
-- [ ] `build/`, IDE caches, local environment files, service-account JSON, and secrets are ignored.
-- [ ] `git status` contains only intentional changes.
-- [ ] The final commit is pushed.
-- [ ] Open the URL in a private window to confirm assessor access.
-- [ ] Copy the exact repository URL into the submission form/report.
-
-Suggested repository name: `unfold-flutter`.
-
-## 5. Technical report PDF
-
-Follow the brief's exact naming/page rules. If none are specified, use:
+Required filename from the assignment:
 
 ```text
-Rajveer_Singh_Jolly_Unfold_Technical_Report.pdf
+RajveerSinghJolly_FinalFlutterProject.pdf
 ```
 
-- [ ] Title page includes student name/ID, module, lecturer, app name, and date.
-- [ ] Problem, target users, and differentiator are clear.
-- [ ] Architecture and Firestore schema are explained.
-- [ ] Authentication, CRUD, real-time updates, state management, and security are evidenced.
-- [ ] Design decisions and accessibility/performance trade-offs are discussed.
-- [ ] Testing approach and actual results are included.
-- [ ] Public prototype-data sources are cited.
-- [ ] AI/CV work is described honestly as implemented, scaffolded, or future work.
-- [ ] Limitations, privacy risks, and next steps are included.
-- [ ] GitHub and demo-video URLs are clickable.
-- [ ] Every exported PDF page is visually checked.
+- [ ] PDF explains architecture, Firebase schema, Riverpod, workflows, design reasoning, scalability, challenges, testing, limitations, and future work.
+- [ ] IEEE-style references, diagrams, and current screenshots are present.
+- [ ] AI, matching, fallback data, and deadlines are described accurately.
+- [ ] Every rendered page has been visually checked for clipping or missing glyphs.
 
-## 6. Demonstration video
+## Video
 
-If no naming pattern is supplied, use `Rajveer_Singh_Jolly_Unfold_Demo.mp4`.
+- [ ] Duration is 7-10 minutes; target 9:30-10:00.
+- [ ] Demonstrate Authentication and Firestore Console changes in real time.
+- [ ] Demonstrate student and founder state changes.
+- [ ] Explain view -> controller -> repository -> Firebase.
+- [ ] Explain cache invalidation and the static match ring.
+- [ ] Show analysis/test results.
+- [ ] State limitations without calling implemented work a prototype.
+- [ ] Uploaded video plays end to end and sharing permits assessor access.
 
-Suggested recording order:
+## Canvas final gate
 
-1. State the problem and product pitch.
-2. Sign in with an ALU Google account.
-3. Show role-aware onboarding/navigation.
-4. Demonstrate discovery and filters.
-5. Explain that personalized matches unlock after CV/skill evidence.
-6. Submit a student application.
-7. Switch to a founder account and publish an opportunity.
-8. Review the application and change its status.
-9. Return to the student flow and show the update.
-10. Show Firebase Authentication and Firestore evidence.
-11. Explain the Riverpod/repository design and responsible-AI roadmap.
-
-- [ ] Duration fits the brief.
-- [ ] Text and audio are clear; notifications are disabled.
-- [ ] No password, API key, CV, private email, or token appears.
-- [ ] Final video plays end-to-end after upload.
-- [ ] Sharing permits assessor access without a request.
-
-## 7. APK and hand-in package
-
-If no APK naming rule is supplied, copy and rename it to `Rajveer_Singh_Jolly_Unfold.apk`.
-
-- [ ] Install the exact renamed APK once.
-- [ ] Keep APK, PDF, and MP4 filenames simple and consistent.
-- [ ] Do not zip unless the portal or brief requires it.
-- [ ] Upload early enough to verify every transferred file.
-- [ ] Save submission confirmation and links separately.
-
-## Final five-minute check
-
-- [ ] Repository link works.
-- [ ] Video link works.
-- [ ] PDF opens.
-- [ ] APK installs.
-- [ ] Firebase demo accounts work.
-- [ ] Filenames and student details are correct.
+- [ ] GitHub repository link works.
+- [ ] Demo video link works.
+- [ ] PDF opens and filename is correct.
+- [ ] Exact APK is retained as backup.
 - [ ] Submission confirmation is saved.

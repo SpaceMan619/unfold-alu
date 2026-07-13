@@ -1,11 +1,12 @@
 flowchart TB
-    U["Student or founder"] --> UI["Flutter screens and reusable widgets"]
-    UI --> P["Riverpod providers and Notifier controllers"]
+    U["Student or founder"] --> UI["Flutter views and sheets"]
+    UI --> P["Riverpod providers and controllers"]
     P --> R["Repository interfaces"]
     R --> A["Firebase Authentication"]
     R --> F["Cloud Firestore"]
-    UI --> FP["File picker: local PDF selection"]
+    UI --> PDF["Local PDF selection"]
+    PDF --> AI["Firebase AI Logic with App Check"]
+    AI --> P
     F --> P
     A --> P
     P --> UI
-    FP -. "future secure analysis service" .-> AI["Server-side AI provider"]

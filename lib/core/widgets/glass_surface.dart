@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 class GlassSurface extends StatelessWidget {
@@ -10,7 +8,6 @@ class GlassSurface extends StatelessWidget {
     this.radius = 28,
     this.onTap,
     this.color,
-    this.blurSigma = 0,
   });
 
   final Widget child;
@@ -18,7 +15,6 @@ class GlassSurface extends StatelessWidget {
   final double radius;
   final VoidCallback? onTap;
   final Color? color;
-  final double blurSigma;
 
   @override
   Widget build(BuildContext context) {
@@ -81,15 +77,7 @@ class GlassSurface extends StatelessWidget {
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: borderRadius,
-        child: blurSigma <= 0
-            ? surface
-            : BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-                child: surface,
-              ),
-      ),
+      child: ClipRRect(borderRadius: borderRadius, child: surface),
     );
   }
 }

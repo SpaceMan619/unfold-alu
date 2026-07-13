@@ -28,19 +28,27 @@ def clean(text):
     return text
 
 def build(source, target, title, subtitle):
-    story = [Spacer(1, 42*mm), Paragraph(title, styles["Cover"]), Paragraph(subtitle, styles["Sub"]), Spacer(1, 18*mm), Paragraph("Rajveer Singh Jolly", styles["Sub"]), Paragraph("African Leadership University · Mobile Application Development", styles["Sub"]), PageBreak()]
+    story = [Spacer(1, 42*mm), Paragraph(title, styles["Cover"]), Paragraph(subtitle, styles["Sub"]), Spacer(1, 18*mm), Paragraph("Rajveer Singh Jolly", styles["Sub"]), Paragraph("African Leadership University - Mobile Application Development", styles["Sub"]), PageBreak()]
     in_code = False
     code = []
     for raw in source.read_text().splitlines():
         line = raw.strip()
         if line.startswith("```"):
             if in_code and code:
-                story.append(Paragraph(clean("<br/>".join(code)), styles["Code"]))
+                rendered = "<br/>".join(
+                    html.escape(item).replace(" ", "&nbsp;") for item in code
+                )
+                story.append(
+                    Paragraph(
+                        f"<font name='Courier'>{rendered}</font>",
+                        styles["Code"],
+                    )
+                )
                 code = []
             in_code = not in_code
             continue
         if in_code:
-            code.append(raw.replace(" ", "&nbsp;"))
+            code.append(raw)
         elif line.startswith("# "):
             story.append(Paragraph(clean(line[2:]), styles["Heading1"]))
         elif line.startswith("## "):
@@ -48,13 +56,13 @@ def build(source, target, title, subtitle):
         elif line.startswith("### "):
             story.append(Paragraph(clean(line[4:]), styles["Heading2"]))
         elif line.startswith(("- ", "* ")):
-            story.append(Paragraph("• " + clean(line[2:]), styles["BodyText"]))
+            story.append(Paragraph("- " + clean(line[2:]), styles["BodyText"]))
         elif re.match(r"^\d+\. ", line):
             story.append(Paragraph(clean(line), styles["BodyText"]))
         elif line.startswith("|---") or line.startswith("| ---"):
             continue
         elif line.startswith("|"):
-            story.append(Paragraph(clean(line.strip("|").replace("|", " · ")), styles["BodyText"]))
+            story.append(Paragraph(clean(line.strip("|").replace("|", " - ")), styles["BodyText"]))
         elif line:
             story.append(Paragraph(clean(line), styles["BodyText"]))
         else:
@@ -73,5 +81,5 @@ def build(source, target, title, subtitle):
     doc = SimpleDocTemplate(str(target), pagesize=A4, rightMargin=18*mm, leftMargin=18*mm, topMargin=17*mm, bottomMargin=17*mm, title=title, author="Rajveer Singh Jolly")
     doc.build(story)
 
-build(ROOT/"docs"/"TECHNICAL_REPORT.md", OUT/"RajveerSinghJolly_FinalFlutterProject.pdf", "Unfold", "Technical report · opportunity discovery for the ALU community")
+build(ROOT/"docs"/"TECHNICAL_REPORT.md", OUT/"RajveerSinghJolly_FinalFlutterProject.pdf", "Unfold", "Technical report - opportunity discovery for the ALU community")
 build(ROOT/"docs"/"STUDY_GUIDE.md", OUT/"Unfold_Study_Guide.pdf", "Know Unfold", "A concise codebase and presentation study guide")

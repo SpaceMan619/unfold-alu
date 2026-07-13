@@ -17,7 +17,6 @@ import '../opportunities/opportunity.dart';
 import '../opportunities/opportunity_controller.dart';
 import '../opportunities/opportunity_match.dart';
 import '../profile/profile_photo_controller.dart';
-import '../startups/startup_controller.dart';
 
 part 'views/discover_view.dart';
 part 'views/saved_view.dart';
@@ -164,8 +163,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         key: const ValueKey('student-navigation'),
         radius: 28,
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-        color: const Color(0xc91a1b20),
-        blurSigma: 16,
+        color: const Color(0xf01a1b20),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final itemWidth = constraints.maxWidth / items.length;
@@ -297,7 +295,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   Future<void> _refresh() async {
     ref.invalidate(opportunityActivityProvider);
     ref.invalidate(applicationReviewProvider);
-    ref.invalidate(startupProvider);
     ref.invalidate(profilePhotoBytesProvider);
     await Future<void>.delayed(const Duration(milliseconds: 650));
   }

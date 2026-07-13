@@ -283,7 +283,6 @@ class _CreateOpportunitySheetState extends State<_CreateOpportunitySheet> {
         location: 'Kigali · $arrangement',
         commitment: 'Flexible',
         skills: skills,
-        match: 80,
         color: UnfoldColors.cyan,
         ownerId: widget.initial?.ownerId ?? '',
         isPaid: isPaid,

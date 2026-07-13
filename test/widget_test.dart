@@ -124,7 +124,7 @@ void main() {
     );
     expect(find.text('MORE LIKE THIS'), findsOneWidget);
     expect(find.text('Start application'), findsOneWidget);
-    expect(find.text('Closes in 12 days'), findsOneWidget);
+    expect(find.textContaining('Closes in'), findsNothing);
   });
 
   testWidgets('student can save and view an opportunity', (tester) async {

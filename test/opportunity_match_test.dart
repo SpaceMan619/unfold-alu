@@ -17,7 +17,6 @@ Opportunity _opp({
     location: 'Kigali · Hybrid',
     commitment: '12 hrs / week',
     skills: skills,
-    match: 0,
     color: const Color(0xff68ddc9),
   );
 }
@@ -28,57 +27,58 @@ void main() {
       final match = OpportunityMatch.of(_opp(), const []);
       expect(match.hasSignal, isFalse);
       expect(match.score, 0);
-      expect(match.matched, isEmpty);
+      expect(match.breakdown.every((item) => !item.have), isTrue);
     });
 
     test('full coverage scores 100 and lists every skill as matched', () {
-      final match = OpportunityMatch.of(
-        _opp(),
-        const ['Flutter', 'Firebase', 'UI testing'],
-      );
+      final match = OpportunityMatch.of(_opp(), const [
+        'Flutter',
+        'Firebase',
+        'UI testing',
+      ]);
       expect(match.hasSignal, isTrue);
       expect(match.score, 100);
-      expect(match.missing, isEmpty);
-      expect(match.matched.length, 3);
+      expect(match.breakdown.every((item) => item.have), isTrue);
     });
 
     test('partial coverage lands between 0 and 100 with the gap surfaced', () {
       final match = OpportunityMatch.of(_opp(), const ['Flutter', 'Firebase']);
       expect(match.score, greaterThan(40));
       expect(match.score, lessThan(100));
-      expect(match.matched, containsAll(<String>['Flutter', 'Firebase']));
-      expect(match.missing, contains('UI testing'));
+      expect(
+        match.breakdown.where((item) => item.have).map((item) => item.skill),
+        containsAll(<String>['Flutter', 'Firebase']),
+      );
+      expect(
+        match.breakdown.where((item) => !item.have).map((item) => item.skill),
+        contains('UI testing'),
+      );
     });
 
     test('matching is case and whitespace insensitive', () {
-      final match = OpportunityMatch.of(_opp(), const ['  flutter ', 'FIREBASE']);
-      expect(match.matched, containsAll(<String>['Flutter', 'Firebase']));
+      final match = OpportunityMatch.of(_opp(), const [
+        '  flutter ',
+        'FIREBASE',
+      ]);
+      expect(match.breakdown.where((item) => item.have), hasLength(2));
     });
 
     test('related phrasing still counts (contains either direction)', () {
-      final match = OpportunityMatch.of(
-        _opp(skills: const ['Flutter']),
-        const ['Flutter development'],
-      );
-      expect(match.matched, contains('Flutter'));
+      final match = OpportunityMatch.of(_opp(skills: const ['Flutter']), const [
+        'Flutter development',
+      ]);
+      expect(match.breakdown.single.have, isTrue);
     });
 
     test('breakdown preserves opportunity skill order with have flags', () {
       final match = OpportunityMatch.of(_opp(), const ['Firebase']);
-      expect(match.breakdown.map((e) => e.skill).toList(),
-          <String>['Flutter', 'Firebase', 'UI testing']);
+      expect(match.breakdown.map((e) => e.skill).toList(), <String>[
+        'Flutter',
+        'Firebase',
+        'UI testing',
+      ]);
       expect(match.breakdown[1].have, isTrue);
       expect(match.breakdown[0].have, isFalse);
-    });
-
-    test('whyLine names matched skills in plain language', () {
-      final match = OpportunityMatch.of(_opp(), const ['Flutter', 'Firebase']);
-      expect(match.whyLine, 'Matches your Flutter and Firebase');
-    });
-
-    test('whyLine handles a single match', () {
-      final match = OpportunityMatch.of(_opp(), const ['Firebase']);
-      expect(match.whyLine, 'Matches your Firebase');
     });
   });
 

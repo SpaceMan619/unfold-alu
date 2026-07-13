@@ -28,49 +28,52 @@ class _DiscoverView extends StatefulWidget {
 }
 
 class _DiscoverViewState extends State<_DiscoverView> {
-  static const slogans = [
-    'Your next chapter\nis ready to unfold.',
-    'Build what matters.\nStart where you are.',
-    'Meet the work\nthat moves you forward.',
-    'Turn your skills\ninto real momentum.',
-    'Find your people.\nShape your path.',
-  ];
   String query = '';
   String category = 'All';
   String compensation = 'All';
-  int sloganIndex = 0;
-  bool sloganVisible = true;
-  Timer? sloganTimer;
+  String matchSignature = '';
+  Map<String, OpportunityMatch> matches = const {};
+  Map<String, String> searchText = const {};
 
   @override
   void initState() {
     super.initState();
-    sloganTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      if (!mounted) return;
-      setState(() => sloganVisible = false);
-      await Future<void>.delayed(const Duration(milliseconds: 350));
-      if (!mounted) return;
-      setState(() {
-        sloganIndex = (sloganIndex + 1) % slogans.length;
-        sloganVisible = true;
-      });
-    });
+    _refreshOpportunityCache();
   }
 
   @override
-  void dispose() {
-    sloganTimer?.cancel();
-    super.dispose();
+  void didUpdateWidget(covariant _DiscoverView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _refreshOpportunityCache();
+  }
+
+  void _refreshOpportunityCache() {
+    // refresh only when skills or opportunity data changes
+    final signature = [
+      widget.userSkills.map((skill) => skill.trim().toLowerCase()).join(','),
+      for (final item in widget.opportunities)
+        '${item.id}:${item.skills.join(',')}',
+    ].join('|');
+    if (signature == matchSignature) return;
+    matchSignature = signature;
+    matches = {
+      for (final item in widget.opportunities)
+        item.id: OpportunityMatch.of(item, widget.userSkills),
+    };
+    searchText = {
+      for (final item in widget.opportunities)
+        item.id: [
+          item.role,
+          item.startup,
+          item.summary,
+          ...item.skills,
+        ].join(' ').toLowerCase(),
+    };
   }
 
   List<Opportunity> get filteredOpportunities {
     return widget.opportunities.where((item) {
-      final haystack = [
-        item.role,
-        item.startup,
-        item.summary,
-        ...item.skills,
-      ].join(' ').toLowerCase();
+      final haystack = searchText[item.id] ?? '';
       final matchesQuery = query.isEmpty || haystack.contains(query);
       final matchesCategory =
           category == 'All' || _categoryFor(item) == category;
@@ -148,20 +151,7 @@ class _DiscoverViewState extends State<_DiscoverView> {
           ],
         ),
         const SizedBox(height: 24),
-        SizedBox(
-          height: 112,
-          child: AnimatedOpacity(
-            opacity: sloganVisible ? 1 : 0,
-            duration: const Duration(milliseconds: 320),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                slogans[sloganIndex],
-                style: Theme.of(context).textTheme.displaySmall,
-              ),
-            ),
-          ),
-        ),
+        const _RotatingSlogan(),
         const SizedBox(height: 16),
         Stack(
           alignment: Alignment.centerRight,
@@ -241,7 +231,9 @@ class _DiscoverViewState extends State<_DiscoverView> {
             child: _OpportunityCard(
               opportunity: opportunity,
               saved: widget.saved.contains(opportunity.id),
-              match: OpportunityMatch.of(opportunity, widget.userSkills),
+              match:
+                  matches[opportunity.id] ??
+                  OpportunityMatch.of(opportunity, widget.userSkills),
               onSave: () => widget.onSave(opportunity.id),
               onTap: () => widget.onOpen(opportunity),
             ),
@@ -284,6 +276,65 @@ class _DiscoverViewState extends State<_DiscoverView> {
       ),
     );
     if (selected != null) setState(() => compensation = selected);
+  }
+}
+
+class _RotatingSlogan extends StatefulWidget {
+  const _RotatingSlogan();
+
+  @override
+  State<_RotatingSlogan> createState() => _RotatingSloganState();
+}
+
+class _RotatingSloganState extends State<_RotatingSlogan> {
+  static const slogans = [
+    'Your next chapter\nis ready to unfold.',
+    'Build what matters.\nStart where you are.',
+    'Meet the work\nthat moves you forward.',
+    'Turn your skills\ninto real momentum.',
+    'Find your people.\nShape your path.',
+  ];
+  int index = 0;
+  bool visible = true;
+  Timer? timer;
+
+  @override
+  void initState() {
+    super.initState();
+    timer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      if (!mounted) return;
+      setState(() => visible = false);
+      await Future<void>.delayed(const Duration(milliseconds: 320));
+      if (!mounted) return;
+      setState(() {
+        index = (index + 1) % slogans.length;
+        visible = true;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 112,
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: const Duration(milliseconds: 320),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            slogans[index],
+            style: Theme.of(context).textTheme.displaySmall,
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -505,16 +556,11 @@ class _OpportunityCard extends StatelessWidget {
 }
 
 class _OpportunityFact extends StatelessWidget {
-  const _OpportunityFact({
-    required this.icon,
-    required this.label,
-    this.color,
-  });
+  const _OpportunityFact({required this.icon, required this.label, this.color});
 
   final IconData icon;
   final String label;
 
-  /// When set, tints the chip (used for the amber "closing soon" state).
   final Color? color;
 
   @override

@@ -1,189 +1,177 @@
 # Unfold
 
-Unfold is an Android-first Flutter application that connects African Leadership University students with opportunities from student- and alumni-led ventures. Students can discover roles, filter the opportunity feed, save listings, submit applications, and track progress. Founders can publish opportunities and review applicants from a role-aware workspace.
+Unfold is an Android-first Flutter application for opportunity discovery within
+the African Leadership University community. Students can find roles, understand
+why their skills fit, save listings, apply, and track progress. Founders can
+publish paid, unpaid, or volunteer opportunities and manage an applicant
+pipeline from the same account.
 
-Its differentiator is **explainable CV discovery**: a student can select a PDF CV, let Firebase AI Logic extract a concise skills summary, review the result, and use those signals to understand which roles fit. The app never allows AI to submit or decide an application.
+The differentiator is explainable CV matching. Firebase AI Logic extracts
+editable skills from a selected PDF. A deterministic local matcher then compares
+those skills with each role, so the percentage and evidence list can be explained
+without allowing AI to accept or reject anyone.
 
 ![Unfold opportunity feed](docs/screenshots/final-home.png)
 
-## Current status
+## Version 1.0 feature set
 
-### Implemented
+- ALU-domain Google sign-in plus email/password authentication
+- Student onboarding and an accessible Founder Studio switch
+- Real-time Firestore opportunities, applications, bookmarks, and profiles
+- Search, category filters, paid/unpaid filters, and saved opportunities
+- Explainable skill-match percentages with a visible skill-by-skill breakdown
+- Validated application form and student application timeline
+- Founder opportunity create, edit, close, and delete flows
+- Paid/unpaid status, RWF or USD monthly compensation, and contact email
+- Optional founder deadlines stored as Firestore timestamps
+- Founder applicant states: submitted, reviewing, shortlisted, waitlisted,
+  accepted, and rejected
+- Applicant and organisation email composer actions
+- PDF CV analysis through Firebase AI Logic with App Check
+- Editable extracted skills, public-profile fields, and cropped profile photos
+- Pull-to-refresh and real-time repository streams
+- Custom Unfold launcher icon, splash screen, and glass-inspired visual system
 
-- Android Flutter application with a custom dark, glass-inspired visual system
-- ALU-domain Google sign-in and email/password account creation
-- Student and founder role selection and onboarding
-- Firestore-backed user profiles
-- Real-time Firestore opportunity feed with sourced prototype seed content as fallback
-- Search plus category, compensation, and volunteering filters
-- Opportunity details, save state, and application form
-- Firestore-backed applications with submitted, reviewing, shortlisted, accepted, and rejected progress
-- Founder opportunity publishing with type, compensation, currency, and contact email
-- On-device PDF selection with an 8 MB limit and Firebase AI Logic analysis
-- Riverpod state management
-- Firestore security rules and indexes
-- Widget, controller, model, and form tests
-- Explicit paid/unpaid listings with RWF or USD monthly compensation
-- Social-style profile with editable bio, location, class year, link, skills/interests, and a bounded cropped photo
-- Rotating home messages, time-aware greetings, profile shortcut, and custom Unfold launcher/splash branding
-- Pull-to-refresh across student and founder pages
+## Honest prototype boundaries
 
-### Deliberate prototype boundaries
-
-- Saved opportunities persist per user in Firestore, with optimistic UI and a local fallback when the backend is unavailable.
-- Opportunity repository methods support update and delete, but the current founder UI focuses on publishing.
-- Founder Studio lets any authenticated user switch modes and publish a role; production moderation is out of scope.
-- CV files are processed directly from memory and are not retained in Firebase Storage. Only the extracted summary is saved to the user's Firestore profile.
-- Match scores in sourced fallback records are presentation fields. The UI does not expose them as personalized matches until CV/skill evidence exists.
-- FlutterFire configuration is Android-only.
+- The bundled opportunity catalogue uses sourced venture names with fictional
+  roles. It is a fallback for presentation and is not a live vacancy feed.
+- Fallback opportunities never display fabricated deadlines. Deadline labels
+  appear only when the Firestore opportunity document contains a timestamp.
+- Founder Studio seeds three clearly labelled fictional applicants into the real
+  `applications` schema when a founder has no applicants. Their status changes
+  persist; real applicants replace them in the visible pipeline.
+- CV bytes are processed from memory and are not retained in Cloud Storage. Only
+  the structured analysis is stored in the authenticated user document.
+- FlutterFire configuration and release verification currently target Android.
 
 ## Architecture
 
-Unfold uses a small feature-first structure so the data flow stays explainable:
-
 ```text
-widget
-  -> Riverpod controller/provider
+Flutter widget
+  -> Riverpod provider/controller
       -> repository interface
-          -> Firebase Auth / Cloud Firestore
+          -> Firebase Authentication / Cloud Firestore / Firebase AI Logic
 ```
 
-Key choices:
+Important choices:
 
-- **Flutter + Material 3** for the Android client
-- **Riverpod** for session and feature state
-- **Firebase Authentication** for Google and email/password sign-in
-- **Cloud Firestore** for users, opportunities, and applications
-- **Firebase AI Logic** for multimodal PDF analysis without embedding an AI-provider key
-- Repository boundaries keep Firebase calls out of most widgets
-- Firebase streams update opportunity and application views in real time
+- Widgets own short-lived presentation state such as search text.
+- Riverpod notifiers coordinate session, opportunity, application, and CV state.
+- Repository interfaces keep Firestore syntax out of UI widgets.
+- Firestore streams make opportunity and application changes real time.
+- Match calculations are cached until CV skills or opportunity data changes.
+- Match rings use static custom paint instead of scroll-triggered animations.
+- `GlassSurface` uses static gradients, borders, and highlights rather than live
+  backdrop blur, keeping the Android scrolling path lightweight.
 
-Firestore collections used or defined by the project:
+## Firestore schema
 
 ```text
-users/{userId}
-startups/{startupId}
+users/{uid}
+  name, email, role, bio, location, classYear, website
+  skills[], interests[], profilePhotoBase64
+  cvAnalysis { skills[], suggestedRoles[], summary }
+
 opportunities/{opportunityId}
+  ownerId, role, startupName, summary, location, commitment
+  skills[], status, opportunityType, contactEmail
+  isPaid, monthlyAmount, currency, deadline?
+
 applications/{applicationId}
-bookmarks/{userId}/items/{opportunityId}
+  opportunityId, studentId, founderId
+  motivation, availability, portfolioUrl
+  studentName, studentEmail, roleTitle, skills[], status, isDemo
+
+bookmarks/{uid}/items/{opportunityId}
+  savedAt
 ```
 
-Founder Studio demo applicants are idempotently seeded into the same
-`applications/{applicationId}` collection as real submissions. The `isDemo`
-field keeps them visibly fictional, while `founderId`, `status`, timestamps,
-contact details, and status updates follow the production schema and persist
-across restarts.
-
-See [PROJECT_GUIDE.md](PROJECT_GUIDE.md) for a concise walkthrough.
+`deadline` is optional and must be a Firestore timestamp when present. Local
+fallback opportunities keep it null, so urgency labels reflect persisted data.
 
 ## Project structure
 
 ```text
 lib/
-├── app/                    # root app and visual theme
-├── core/                   # backend configuration and shared widgets
+├── app/                    # app root and theme
+├── core/widgets/           # reusable visual primitives
 ├── features/
-│   ├── applications/       # form, model, repository, founder review
-│   ├── auth/               # session, Firebase auth, and onboarding screens
+│   ├── applications/       # model, form, repository, founder review
+│   ├── auth/               # authentication, session, and onboarding
 │   ├── cv/                 # PDF validation and Firebase AI analysis
-│   ├── home/               # shell plus focused views, sheets, and widgets
-│   └── opportunities/      # model, seed data, repository, controller
-├── firebase_options.dart   # generated Android Firebase options
+│   ├── home/               # shell, views, sheets, and shared widgets
+│   ├── opportunities/      # model, matching, seed data, repository
+│   └── profile/            # public profile and image processing
+├── firebase_options.dart
 └── main.dart
-test/                       # widget, model, form, and controller tests
-docs/                       # source notes and submission material
-android/                    # Android host project and Google services config
+test/                       # model, controller, repository, and widget tests
+docs/                       # report, script, study guide, and sources
+android/                    # Android host and branding
 ```
 
-## Requirements and local run
+## Run and verify
 
-- Flutter SDK compatible with Dart `^3.11.5`
-- Android SDK and an emulator or physical Android device
-- Java 17
-- A Firebase project when replacing the included configuration
-- Firebase CLI and FlutterFire CLI for backend reconfiguration
+Requirements: Flutter/Dart compatible with `sdk: ^3.11.5`, Java 17, Android
+SDK, and an Android emulator or physical device.
 
 ```bash
-flutter doctor -v
-flutter devices
 flutter pub get
+dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
-flutter run
+flutter run -d <device-id>
 ```
 
-To select a device and build the submission-sized release APK:
+Build the smaller phone-specific release:
 
 ```bash
-flutter run -d <device-id>
 flutter build apk --release --split-per-abi
 ```
 
-For a modern Android phone, use `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`. The ABI-specific build keeps the shareable APK close to 22 MB without reducing visual quality.
+For a modern Android phone, use
+`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`. ABI splitting reduces
+download size without reducing image or rendering quality.
 
 ## Firebase setup
 
-The checked-in Android configuration targets Firebase project `unfold-f52a4` and application ID `com.alu.unfold.unfold`. Firebase web API keys and `google-services.json` identify the client; they are not server-side admin credentials. Never add service-account JSON or AI-provider secrets to Git.
+The included client configuration points to project `unfold-f52a4` and package
+`com.alu.unfold.unfold`. Firebase client identifiers are public configuration;
+service-account files, signing keys, AI-provider secrets, and App Check debug
+tokens must never be committed.
 
-For another Firebase project:
+For a replacement project:
 
-1. Register an Android app with package name `com.alu.unfold.unfold`.
-2. Enable **Authentication > Sign-in method > Email/Password** and **Google**.
-3. Add development/release SHA fingerprints required by Google sign-in.
-4. Create Cloud Firestore.
-5. Open **Firebase AI Logic**, choose the Gemini Developer API, and enable App Check. Debug builds use the debug provider; release builds use Play Integrity. For APKs distributed outside Google Play, enable the Play Integrity API and configure App Check to allow unrecognized app versions while still requiring device integrity.
-6. Regenerate Android configuration and deploy rules:
+1. Register the Android package and add debug/release SHA fingerprints.
+2. Enable Google and Email/Password Authentication.
+3. Create Cloud Firestore.
+4. Enable Firebase AI Logic with the Gemini Developer API.
+5. Configure App Check: debug provider for development and Play Integrity for
+   release builds. Sideloaded builds require the approved unrecognized-version
+   policy while retaining device integrity.
+6. Run `flutterfire configure --platforms=android`.
+7. Deploy `firebase deploy --only firestore:rules,firestore:indexes`.
 
-```bash
-firebase login
-dart pub global activate flutterfire_cli
-flutterfire configure --platforms=android
-firebase deploy --only firestore:rules,firestore:indexes
-```
+## Data, privacy, and attribution
 
-7. Confirm `lib/firebase_options.dart`, `android/app/google-services.json`, `.firebaserc`, and `firebase.json` point to the intended project.
+CVs contain personal information. Unfold requires explicit PDF selection,
+accepts PDF files only, rejects files larger than 8 MB, keeps raw bytes in
+memory, and stores only editable structured output. Matching recommends roles;
+founders remain responsible for every hiring decision.
 
-When running a debug build, register the token printed by the Android logs under **App Check > Apps > Manage debug tokens**. Never inject a debug token into a release APK. Release testing requires the Android app's SHA-256 certificate to be registered in Firebase.
+Fallback venture attribution and the fictional-data boundary are documented in
+[docs/DEMO_DATA_SOURCES.md](docs/DEMO_DATA_SOURCES.md). Security guidance is in
+[SECURITY.md](SECURITY.md).
 
-Current Firestore rules restrict new database profiles to authenticated ALU addresses ending in `@alustudent.com` or `@alueducation.com`. Google sign-in performs the same domain check in the client.
+## Submission material
 
-## Demo account guidance
+- [Technical report](docs/TECHNICAL_REPORT.md)
+- [10-minute demonstration script](docs/DEMO_SCRIPT.md)
+- [Codebase study guide](docs/STUDY_GUIDE.md)
+- [Submission checklist](docs/SUBMISSION_CHECKLIST.md)
+- [Project guide](PROJECT_GUIDE.md)
 
-No passwords or reusable accounts belong in Git. For an assessment demo:
-
-- prepare one student and one founder account using authorized ALU-domain addresses;
-- use unique, non-reused passwords;
-- confirm each has a `users/{uid}` profile with the correct role;
-- create at least one founder-owned opportunity before recording;
-- submit one student application and demonstrate a founder status change;
-- redact email addresses, UIDs, tokens, and personal documents from screenshots.
-
-If an assessor cannot use an ALU-domain account, demonstrate with pre-created authorized accounts instead of weakening rules immediately before submission.
-
-## Prototype data and attribution
-
-Fallback venture names and public founder information were assembled from public ALU sources. **All opportunity titles, requirements, deadlines, locations, match values, and vacancy status in the seed set are fictional prototype data.** They must not be described as real vacancies or endorsements.
-
-Citations and usage constraints are in [docs/DEMO_DATA_SOURCES.md](docs/DEMO_DATA_SOURCES.md).
-
-Venture logos are stored in `assets/logos`; attribution and source notes are documented alongside them. The Founder Studio community photograph was supplied in the project review folder; its original publication rights should be confirmed before any production release.
-
-## Privacy and responsible AI
-
-CVs contain personal data. This prototype:
-
-- asks the student to deliberately select a document before analysis;
-- uses Firebase AI Logic rather than embedding a provider secret;
-- accepts PDF files only and rejects files larger than 8 MB;
-- does not retain the original document in cloud storage;
-- shows extracted skills for review, removal, and correction;
-- explains matches without allowing AI to accept or reject applicants;
-- provides a manual profile fallback when analysis is unavailable.
-
-For production, the project would also need a complete consent screen, retention policy, abuse controls, and independent security review.
-
-## Assignment context
-
-Unfold was developed as a Mobile Application Development assignment. It demonstrates authentication, role-aware flows, CRUD/repository design, persistent cloud data, real-time updates, validation, state management, security rules, testing, and a domain-specific concept. It is an educational prototype, not a live recruitment service.
-
-Before hand-in, complete [docs/SUBMISSION_CHECKLIST.md](docs/SUBMISSION_CHECKLIST.md).
+Unfold is an educational prototype built for Mobile Application Development. It
+demonstrates authentication, cloud persistence, role-aware workflows, CRUD,
+real-time updates, validation, responsible AI, security rules, state management,
+testing, and performance-aware Flutter UI design.

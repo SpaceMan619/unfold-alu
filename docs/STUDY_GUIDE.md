@@ -1,170 +1,141 @@
-# Unfold Study Guide
+# Unfold V1 Study Guide
 
 ## The 20-second explanation
 
-Unfold connects ALU students with opportunities from student-led ventures. Students discover and apply; founders publish roles and review applicants. Flutter renders the app, Riverpod owns its state, Firebase Auth identifies users, Firestore persists opportunities/applications, and security rules enforce who can perform each action.
+Unfold connects ALU students with student-led ventures. Students discover roles, turn a PDF CV into editable evidence, receive explainable skill matches, apply, and track progress. Founders publish opportunities and manage applicants. Flutter renders the app, Riverpod owns shared state, Firebase Auth identifies users, Firestore persists data, Firebase AI Logic analyzes the selected PDF, and security rules enforce ownership.
 
-## The codebase in one picture
+## The architecture to memorize
 
 ```text
-main.dart
-  → initializes Firebase and ProviderScope
-  → UnfoldApp
-  → AuthGate reads SessionController
-  → HomeShell reads feature controllers
-  → controllers call repository interfaces
-  → Firebase repository implementations read/write Firestore
+view -> Riverpod controller -> repository interface -> Firebase
 ```
+
+The view displays state and sends commands. The controller owns workflow state. The repository translates domain objects to backend operations. Firestore and Auth are replaceable implementations, which is why tests can use fakes.
 
 ## Files you must know
 
-| File | Purpose |
-|---|---|
-| `lib/main.dart` | Initializes Firebase and Riverpod. |
-| `lib/app/unfold_app.dart` | Creates `MaterialApp` and chooses `AuthGate`. |
-| `lib/app/unfold_theme.dart` | Colors, typography, and component theme. |
-| `lib/core/widgets/glass_surface.dart` | Reusable clipped blur/gradient/border glass component. |
-| `lib/features/auth/session_controller.dart` | Auth repository, ALU email check, profile restore, roles, session state. |
-| `lib/features/auth/auth_gate.dart` | Shows the correct screen for the session stage. |
-| `lib/features/opportunities/opportunity.dart` | Opportunity model and Firestore mapping. |
-| `lib/features/opportunities/opportunity_controller.dart` | Active feed, saved IDs, applied IDs, submission orchestration. |
-| `lib/features/opportunities/opportunity_repository.dart` | Firestore opportunity CRUD and stream. |
-| `lib/features/applications/application.dart` | Application model/status and mapping. |
-| `lib/features/applications/application_review_controller.dart` | Founder stream and optimistic status updates. |
+| File | What to say |
+| --- | --- |
+| `lib/main.dart` | Initializes Firebase, App Check, and Riverpod. |
+| `lib/features/auth/session_controller.dart` | Observes auth, restores profiles, validates ALU domains, handles roles and sign-out. |
+| `lib/features/opportunities/opportunity.dart` | Opportunity model and Firestore serialization, including compensation and deadline. |
+| `lib/features/opportunities/opportunity_controller.dart` | Live feed, fallback data, bookmarks, applied IDs, submission, and refresh. |
+| `lib/features/opportunities/opportunity_repository.dart` | Firestore opportunity create/read/update/delete. |
+| `lib/features/opportunities/opportunity_match.dart` | Pure, deterministic skill-overlap calculation and related-role ranking. |
+| `lib/features/applications/application.dart` | Application data and six status values. |
+| `lib/features/applications/application_review_controller.dart` | Founder stream plus optimistic status update and rollback. |
 | `lib/features/applications/application_repository.dart` | Firestore application queries and writes. |
-| `lib/features/cv/cv_analysis_controller.dart` | PDF selection state only; AI is not connected. |
-| `lib/features/profile/profile_photo_controller.dart` | Validates, crops, compresses, uploads, and observes profile photos. |
-| `lib/features/home/home_shell.dart` | Student/founder screens, navigation, search, forms and sheets. |
-| `firestore.rules` | Backend authorization rules. |
+| `lib/features/cv/cv_analysis_controller.dart` | PDF limit, Firebase AI Logic call, structured result, persistence, and editable skills. |
+| `lib/features/home/views/discover_view.dart` | Search/filter UI plus cached search and matching. |
+| `lib/core/widgets/match_ring.dart` | Static custom-painted score ring. |
+| `lib/core/widgets/glass_surface.dart` | Reusable lightweight translucent surface. |
+| `firestore.rules` | Backend authorization and deadline type validation. |
 
-## Explain Riverpod simply
-
-The opportunity model also owns compensation truth: `isPaid`, optional `monthlyAmount`, and `currency`. The founder form makes the amount mandatory only when paid is enabled, and the discovery card/detail sheet render the same stored values.
-
-Pull-to-refresh invalidates the opportunity, application, startup, and profile-photo providers. “Start application” opens a form; Firestore is written only after valid motivation and availability answers are submitted.
-
-A provider is a place where a dependency or state can be accessed. A `Notifier` owns state and the methods that change it. A widget calls `ref.watch(provider)` to rebuild when that state changes. It calls `ref.read(provider.notifier)` to perform an action. Tests override providers with fake repositories, so they do not need a live Firebase connection.
-
-## Explain one complete data flow
+## One complete state flow
 
 Application submission:
 
-1. The student completes `ApplicationFormSheet`.
-2. The form validates required answers.
-3. `OpportunityActivityController.submitApplication` creates an `OpportunityApplication`.
-4. The UI adds the opportunity ID optimistically.
-5. `FirestoreApplicationRepository.submit` writes `applications/{studentId_opportunityId}`.
-6. Firestore rules verify the authenticated student, initial status, and correct opportunity owner.
-7. The student application stream updates `appliedIds`.
-8. If the write fails, the controller removes the optimistic ID and rethrows the error.
+1. The student opens the form; no write occurs.
+2. The form validates motivation and availability.
+3. `OpportunityActivityController` creates the domain object.
+4. The applied ID changes optimistically.
+5. `FirestoreApplicationRepository` writes `applications/{studentId_opportunityId}`.
+6. Rules verify the signed-in student, initial status, and correct opportunity owner.
+7. The snapshot stream confirms the item.
+8. On failure, the optimistic state rolls back and the UI displays an error.
 
-## Firestore schema to memorize
+## Firestore schema
 
-- `users/{uid}` — name, email, role.
-- `startups/{startupId}` — owner and verification status.
-- `opportunities/{id}` — role data, status, `ownerId`.
-- `applications/{id}` — `studentId`, `founderId`, `opportunityId`, answers, status.
-- `bookmarks/{uid}/items/{opportunityId}` — private, per-user saved opportunities.
+- `users/{uid}`: identity, profile fields, skills/interests, compressed photo, CV result.
+- `opportunities/{id}`: owner, role, venture, skills, compensation, contact, optional timestamp deadline, status.
+- `applications/{id}`: student/founder/opportunity IDs, answers, one of six statuses, timestamps.
+- `bookmarks/{uid}/items/{opportunityId}`: private saved-role reference.
+
+There is no active startup collection dependency in V1. Venture information is denormalized into an opportunity so the feed needs one read.
+
+## Deadline truth
+
+The founder date picker supplies a `DateTime`. The repository converts it to Firestore data. When read, the model accepts a Firestore `Timestamp`. The UI derives words such as "Closes in 4 days" from that persisted value. Fallback roles have `deadline == null`, so they never show invented urgency.
+
+## CV intelligence and matching
+
+The PDF remains in memory and is sent inline through Firebase AI Logic. It is limited to 8 MB. Gemini must return JSON containing skills, suggested roles, and a summary. Only those structured fields and the filename are stored in the user document; the raw PDF is not retained in Storage.
+
+Matching is not another AI call:
+
+```text
+score = matched required skills / total required skills
+```
+
+The user can remove extracted skills. That makes the evidence user-controlled and the score explainable. A score recommends discovery order; it never changes an application status.
+
+## Why scrolling is smoother in V1
+
+The original match ring ran a 900 ms animation each time a list item rebuilt. Search normalization and skill overlap were also recalculated during parent rebuilds, and live backdrop blur was expensive on Android.
+
+V1 fixes this by:
+
+- painting a static match ring;
+- caching search text and match objects until skills or opportunity data changes;
+- isolating the rotating slogan timer in its own widget;
+- replacing live navigation blur with static translucent layers.
+
+Pull-to-refresh invalidates data providers. Scrolling does not fetch or recalculate percentages.
 
 ## Security rules to memorize
 
-- Profile creation requires an authenticated ALU-domain email and matching UID.
-- Normal users cannot change their role after profile creation.
-- Only founders create opportunities.
-- Only the owning founder or admin edits/deletes an opportunity.
-- Students submit applications only for themselves with `submitted` status.
-- The application founder must match the opportunity owner.
-- Only that founder/admin changes status; student/founder/opportunity IDs remain fixed.
-- A student may withdraw only their own application.
-- Bookmark paths are private to their user.
-
-## Honest feature status
-
-### Implemented
-
-- Firebase initialization
-- Google and email/password authentication
-- ALU-domain gate for Google and profile creation rules
-- Student/founder roles
-- Opportunity feed, search, filters and details
-- Opportunity repository CRUD
-- Application form and submission repository
-- Founder applicant review and status pipeline
-- Real-time Firestore listeners
-- Riverpod state management
-- Glass-inspired visual system
-- PDF selection/removal scaffold
-- Automated tests
-
-### Partial or future
-
-- Bookmarks persist in Firestore with optimistic updates and a local fallback.
-- Seed opportunities appear when Firestore has no active records.
-- Startup onboarding and founder gating are implemented; administrators verify startups in Firebase Console rather than a dedicated admin app.
-- PDF upload and AI analysis are not implemented.
-- Personalized matching is locked until evidence exists.
-- Production App Check, notifications, pagination, and full accessibility/device QA remain future work.
+- A profile is created only for the signed-in UID with an ALU-domain email.
+- A student submits only as themselves and starts at `submitted`.
+- The application's founder ID must match the live opportunity owner.
+- Only the owner/admin changes application status; relationship IDs stay fixed.
+- Opportunity create/update/delete requires authenticated ownership.
+- A deadline is null/absent or a timestamp.
+- A bookmark path is private to its UID.
 
 ## Likely evaluator questions
 
-### Why Flutter?
+### Why Riverpod?
 
-One Dart codebase, strong custom rendering, fast iteration, mature Material widgets, and a good fit for Android delivery. Flutter's composable widgets made the reusable glass system practical.
-
-### Why Riverpod instead of `setState` everywhere?
-
-Authentication, feeds, and applications outlive individual widgets and depend on repositories. Riverpod centralizes that state, injects dependencies, supports streams, and makes controllers testable with provider overrides. Local search text still uses widget state because it is purely presentational.
+Shared auth, feed, CV, and application state outlive one widget. Riverpod makes dependencies explicit, supports streams and Notifiers, scopes rebuilds, and allows provider overrides in tests. Local visual input can still use `setState`.
 
 ### Why Firebase?
 
-Auth and Firestore solve identity, persistence, and real-time synchronization without maintaining a custom server. Security rules place authorization beside the data.
+Authentication, real-time Firestore listeners, security rules, and AI Logic cover the main backend needs without a custom server. Rules keep authorization beside the data.
 
 ### Is hiding founder buttons secure?
 
-No. Role-aware UI is only usability. Firestore rules enforce founder ownership even if someone calls the backend directly.
+No. The interface is convenience. Firestore rules check the authenticated owner even if a client calls the backend directly.
 
-### Why store applications as a top-level collection?
+### Why optimistic updates?
 
-Both a student and a founder need to query their own applications. Top-level documents with both IDs make those queries direct and allow rules to verify both participants.
+They make the interaction immediate. The repository remains the source of truth; a failed write restores the previous state.
 
-### What is optimistic UI?
+### Is AI deciding who gets hired?
 
-The screen changes immediately before the network request finishes. If Firebase succeeds, the stream confirms it. If it fails, the controller restores the previous state. This improves responsiveness without hiding errors.
+No. AI extracts editable evidence. A pure function calculates overlap. Founders make every status decision.
 
-### Is the CV feature AI-powered now?
+### Why no Cloud Storage?
 
-No. The app currently selects/removes a PDF and models future analysis states. A production version would upload privately, call a Cloud Function, use a server-held provider key, validate structured output, and let the student edit extracted skills.
+The Spark-plan workflow did not require it. Profile photos are tightly compressed into the user record, and CV bytes are sent directly for analysis without raw-file retention.
 
-### Why not put the AI API key in Flutter?
+### What is original about Unfold?
 
-A compiled mobile app is distributed to users, so embedded secrets can be extracted. The key must stay in a trusted server environment such as Firebase Functions secret storage.
+It combines an ALU identity boundary, student/founder modes, compensation-aware publishing, editable CV intelligence, explainable matching, and an applicant pipeline in a mobile workflow shaped by physical-device feedback.
 
-### How would matching work?
+### How would it scale?
 
-AI should only turn an unstructured CV into editable structured evidence. A deterministic, explainable score can then combine skill overlap, mission alignment, learning goals, availability, and work arrangement. AI must not automatically accept or reject candidates.
+Add pagination, indexed server-side filters, search infrastructure, notification functions, custom admin claims, App Check enforcement, analytics, and emulator-tested rules. The repository layer lets those changes occur without rewriting views.
 
-### What makes the UI “Liquid Glass”?
+## Commands
 
-`GlassSurface` uses clipped background blur, translucent layered gradients, a luminous border/top highlight, rounded geometry, shadow depth, and Material ink response. It is an Android-appropriate interpretation, not an iOS API clone.
-
-### How would you scale it?
-
-Add paginated indexed queries, server-maintained categories, Cloud Functions for notifications, App Check, Cloud Messaging, custom admin claims, image resizing/caching, analytics, and rule tests in the Firebase Emulator Suite.
-
-### What would you improve first?
-
-Add a dedicated admin verification screen and emulator-tested rule suite, then build secure CV upload and editable extraction. These improve correctness before expanding the AI workflow.
-
-## Commands to remember
-
-```bash
+```text
 flutter pub get
+dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
-flutter run
-flutter build apk --debug
+flutter build apk --release --target-platform android-arm64
 ```
 
-## Final presentation rule
+## Presentation rule
 
-Never describe planned work as finished. The strongest answer is precise: explain what works, show the code/data flow, state the limitation, and describe the next safe implementation step.
+Be exact. Show a working flow, name the controller and repository, show the matching Firebase document, explain the rule that protects it, and state one honest limitation. Understanding earns more confidence than memorized jargon.

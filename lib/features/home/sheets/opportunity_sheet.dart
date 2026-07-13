@@ -48,7 +48,6 @@ class _OpportunitySheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 22),
-                // Identity + the same ring that was on the card (Hero-shared).
                 Row(
                   children: [
                     _StartupLogo(opportunity: opportunity),
@@ -143,7 +142,6 @@ class _OpportunitySheet extends StatelessWidget {
                 ],
               ],
             ),
-            // Apply never scrolls away.
             Positioned(
               left: 0,
               right: 0,
@@ -161,8 +159,6 @@ class _OpportunitySheet extends StatelessWidget {
   }
 }
 
-/// Pay · time · place — the three questions a student asks first, as a single
-/// grouped strip with tabular figures.
 class _SheetLedger extends StatelessWidget {
   const _SheetLedger({required this.opportunity});
   final Opportunity opportunity;
@@ -267,8 +263,6 @@ class _LedgerCell extends StatelessWidget {
   }
 }
 
-/// The match score, explained. Cites each skill the student already has and is
-/// honest about the gap instead of padding the card with template sentences.
 class _WhyYouMatch extends StatelessWidget {
   const _WhyYouMatch({required this.opportunity, required this.match});
   final Opportunity opportunity;
@@ -421,7 +415,6 @@ class _AskRow extends StatelessWidget {
   }
 }
 
-/// Skill-adjacent listings so a "no" flows into the next option.
 class _RelatedRow extends StatelessWidget {
   const _RelatedRow({
     required this.related,

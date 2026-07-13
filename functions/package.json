@@ -1,1 +1,0 @@
-{"name":"unfold-functions","private":true,"engines":{"node":"20"},"main":"lib/index.js","scripts":{"build":"tsc","lint":"tsc --noEmit"},"dependencies":{"firebase-admin":"^13.0.0","firebase-functions":"^6.0.0","pdf-parse":"^1.1.1"},"devDependencies":{"@types/node":"^22.0.0","typescript":"^5.7.0"}}

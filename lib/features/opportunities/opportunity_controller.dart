@@ -5,7 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/backend/backend_config.dart';
 import '../applications/application.dart';
 import '../applications/application_review_controller.dart';
 import '../auth/session_controller.dart';
@@ -15,7 +14,7 @@ import 'opportunity_repository.dart';
 import 'opportunity_seed_data.dart';
 
 final opportunityRepositoryProvider = Provider<OpportunityRepository?>((ref) {
-  if (!BackendConfig.usesFirebase || Firebase.apps.isEmpty) return null;
+  if (Firebase.apps.isEmpty) return null;
   return FirestoreOpportunityRepository(
     FirebaseFirestore.instance,
     FirebaseAuth.instance,
@@ -23,7 +22,7 @@ final opportunityRepositoryProvider = Provider<OpportunityRepository?>((ref) {
 });
 
 final bookmarkRepositoryProvider = Provider<BookmarkRepository?>((ref) {
-  if (!BackendConfig.usesFirebase || Firebase.apps.isEmpty) return null;
+  if (Firebase.apps.isEmpty) return null;
   return FirestoreBookmarkRepository(FirebaseFirestore.instance);
 });
 
@@ -98,20 +97,8 @@ class OpportunityActivityController extends Notifier<OpportunityActivity> {
     return initial;
   }
 
-  static const _demoDeadlineDays = <String, int>{
-    'demo-kayko-flutter': 12,
-    'demo-starlight-growth': 4,
-    'demo-signvrse-accessibility': 2,
-  };
-
   List<Opportunity> get _seedOpportunities => sourcedVentureOpportunitySeeds
-      .map((seed) {
-        final days = _demoDeadlineDays[seed.opportunity.id];
-        if (days == null) return seed.opportunity;
-        return seed.opportunity.copyWith(
-          deadline: DateTime.now().add(Duration(days: days)),
-        );
-      })
+      .map((seed) => seed.opportunity)
       .toList(growable: false);
 
   List<Opportunity> _mergeWithSeeds(List<Opportunity> live) {

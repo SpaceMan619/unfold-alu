@@ -4,8 +4,8 @@ The venture names, founders, public descriptions, and ALU connections below are
 based on public sources. They are included only to make the Unfold prototype
 feel relevant to the African Leadership University community.
 
-> **Every opportunity title, requirement, location, commitment, match score,
-> deadline, and hiring status in this seed set is fictional demonstration data.
+> **Every opportunity title, requirement, location, commitment, and hiring
+> status in this seed set is fictional demonstration data.
 > Nothing in the prototype represents a real vacancy or a posting by the named
 > venture.**
 
@@ -27,6 +27,8 @@ feel relevant to the African Leadership University community.
 
 - Do not present these demo roles as live vacancies.
 - Keep `demoOpportunityDisclaimer` visible wherever this seed set is displayed.
+- Seed roles do not carry deadlines or stored match scores. Match percentages are
+  calculated from the signed-in user's current skills.
 - Do not fabricate additional founders where a source identifies someone only
   as a co-founder.
 - Refresh the public-source review before using these profiles outside an

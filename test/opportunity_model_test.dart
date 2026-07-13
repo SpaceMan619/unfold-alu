@@ -12,7 +12,6 @@ void main() {
       location: 'Kigali',
       commitment: '4 hrs / week',
       skills: ['Teamwork'],
-      match: 80,
       color: Color(0xff68ddc9),
       type: OpportunityType.volunteering,
       contactEmail: 'volunteer@example.com',
@@ -46,7 +45,6 @@ void main() {
       location: 'Kigali',
       commitment: '8 hrs / week',
       skills: const ['Research'],
-      match: 0,
       color: const Color(0xff68ddc9),
       deadline: deadline,
     );
@@ -67,7 +65,6 @@ void main() {
       location: 'Kigali',
       commitment: '8 hrs / week',
       skills: const ['Research'],
-      match: 0,
       color: const Color(0xff68ddc9),
       deadline: deadline,
     );

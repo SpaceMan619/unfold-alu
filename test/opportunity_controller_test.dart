@@ -151,7 +151,6 @@ void main() {
         location: 'Remote',
         commitment: 'Flexible',
         skills: ['Research'],
-        match: 0,
         color: Color(0xff68ddc9),
       );
       repository.stream.add(const [live]);

@@ -28,7 +28,6 @@ class Opportunity {
     required this.location,
     required this.commitment,
     required this.skills,
-    required this.match,
     required this.color,
     this.ownerId = '',
     this.isPaid = false,
@@ -46,7 +45,6 @@ class Opportunity {
   final String location;
   final String commitment;
   final List<String> skills;
-  final int match;
   final Color color;
   final String ownerId;
   final bool isPaid;
@@ -89,27 +87,6 @@ class Opportunity {
     return 'Closes in $days days';
   }
 
-  Opportunity copyWith({DateTime? deadline}) {
-    return Opportunity(
-      id: id,
-      role: role,
-      startup: startup,
-      summary: summary,
-      location: location,
-      commitment: commitment,
-      skills: skills,
-      match: match,
-      color: color,
-      ownerId: ownerId,
-      isPaid: isPaid,
-      monthlyAmount: monthlyAmount,
-      currency: currency,
-      type: type,
-      contactEmail: contactEmail,
-      deadline: deadline ?? this.deadline,
-    );
-  }
-
   factory Opportunity.fromMap(String id, Map<String, dynamic> map) {
     return Opportunity(
       id: id,
@@ -119,7 +96,6 @@ class Opportunity {
       location: map['location'] as String? ?? 'Remote',
       commitment: map['commitment'] as String? ?? 'Flexible',
       skills: List<String>.from(map['skills'] as List? ?? const []),
-      match: 0,
       color: const Color(0xff68ddc9),
       ownerId: map['ownerId'] as String? ?? '',
       isPaid: map['isPaid'] as bool? ?? false,
@@ -156,42 +132,3 @@ DateTime? _readDeadline(Object? value) {
   if (value is String) return DateTime.tryParse(value);
   return null;
 }
-
-const demoOpportunities = [
-  Opportunity(
-    id: 'mobile-dev',
-    role: 'Mobile developer intern',
-    startup: 'Soma Labs',
-    summary:
-        'Help shape a learning companion built for low-bandwidth classrooms.',
-    location: 'Kigali · Hybrid',
-    commitment: '12 hrs / week',
-    skills: ['Flutter', 'Firebase', 'Product'],
-    match: 92,
-    color: Color(0xff68ddc9),
-  ),
-  Opportunity(
-    id: 'growth',
-    role: 'Growth & community fellow',
-    startup: 'Kijani Works',
-    summary:
-        'Tell the stories behind a circular design community across campus.',
-    location: 'Remote',
-    commitment: '8 hrs / week',
-    skills: ['Research', 'Content', 'Community'],
-    match: 84,
-    color: Color(0xffffc66b),
-  ),
-  Opportunity(
-    id: 'analyst',
-    role: 'Venture operations analyst',
-    startup: 'Nuru Mobility',
-    summary:
-        'Turn early pilot data into decisions for a cleaner Kigali commute.',
-    location: 'Kigali · On-site',
-    commitment: '10 hrs / week',
-    skills: ['Analytics', 'Operations', 'Strategy'],
-    match: 78,
-    color: Color(0xff9fa8ff),
-  ),
-];

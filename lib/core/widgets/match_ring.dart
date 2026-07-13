@@ -4,10 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../../app/unfold_theme.dart';
 
-/// A compact fit indicator: a track ring with a coloured progress arc and the
-/// score at its centre. Deliberately flat — no glow, no orb — so it reads as an
-/// instrument, not decoration. Shared between the discovery card and the detail
-/// sheet (wrap in a [Hero] with a shared tag for a continuous open transition).
 class MatchRing extends StatelessWidget {
   const MatchRing({
     super.key,
@@ -15,66 +11,32 @@ class MatchRing extends StatelessWidget {
     required this.color,
     this.size = 46,
     this.hasSignal = true,
-    this.animate = true,
   });
 
-  /// 0–100.
   final int score;
-
-  /// Accent for the arc and the number (the opportunity's own colour).
   final Color color;
-
   final double size;
-
-  /// When false the ring shows a neutral dash instead of a score — used before
-  /// the student has any skills on file to match against.
   final bool hasSignal;
-
-  final bool animate;
 
   @override
   Widget build(BuildContext context) {
     final stroke = size * 0.085;
-    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    final target = (score.clamp(0, 100)) / 100;
-
-    final ring = TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: hasSignal ? target : 0),
-      duration: (animate && !reduceMotion)
-          ? const Duration(milliseconds: 900)
-          : Duration.zero,
-      curve: Curves.easeOutCubic,
-      builder: (context, value, _) {
-        return CustomPaint(
-          size: Size.square(size),
-          painter: _RingPainter(
-            progress: value,
-            color: color,
-            stroke: stroke,
+    final progress = hasSignal ? score.clamp(0, 100) / 100 : 0.0;
+    final ring = CustomPaint(
+      size: Size.square(size),
+      painter: _RingPainter(progress: progress, color: color, stroke: stroke),
+      child: Center(
+        child: Text(
+          hasSignal ? '$score%' : 'New',
+          style: TextStyle(
+            color: hasSignal ? color : UnfoldColors.muted,
+            fontSize: size * (hasSignal ? 0.26 : 0.2),
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.3,
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
-          child: Center(
-            child: hasSignal
-                ? Text(
-                    '${(value * 100).round()}%',
-                    style: TextStyle(
-                      color: color,
-                      fontSize: size * 0.26,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  )
-                : Text(
-                    'New',
-                    style: TextStyle(
-                      color: UnfoldColors.muted,
-                      fontSize: size * 0.2,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-          ),
-        );
-      },
+        ),
+      ),
     );
 
     return Semantics(

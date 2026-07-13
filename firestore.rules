@@ -23,6 +23,12 @@ service cloud.firestore {
         && request.auth.token.email.matches('.*@(alustudent\\.com|alueducation\\.com)$');
     }
 
+    function hasValidDeadline() {
+      return !('deadline' in request.resource.data)
+        || request.resource.data.deadline == null
+        || request.resource.data.deadline is timestamp;
+    }
+
     match /users/{userId} {
       allow read: if signedIn();
       allow create: if hasAluEmail() && request.auth.uid == userId;
@@ -46,11 +52,15 @@ service cloud.firestore {
     match /opportunities/{opportunityId} {
       allow read: if signedIn();
       allow create: if signedIn()
-        && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isAdmin()
-        || (isFounder() && resource.data.ownerId == request.auth.uid
-          && (request.method == 'delete'
-            || request.resource.data.ownerId == resource.data.ownerId));
+        && request.resource.data.ownerId == request.auth.uid
+        && hasValidDeadline();
+      allow update: if isAdmin()
+        || (signedIn()
+          && resource.data.ownerId == request.auth.uid
+          && request.resource.data.ownerId == resource.data.ownerId
+          && hasValidDeadline());
+      allow delete: if isAdmin()
+        || (signedIn() && resource.data.ownerId == request.auth.uid);
     }
 
     match /applications/{applicationId} {
