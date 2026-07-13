@@ -106,7 +106,7 @@ lib/
 ├── firebase_options.dart
 └── main.dart
 test/                       # model, controller, repository, and widget tests
-docs/                       # report, script, study guide, and sources
+docs/                       # architecture and data-model references
 android/                    # Android host and branding
 ```
 
@@ -159,17 +159,8 @@ accepts PDF files only, rejects files larger than 8 MB, keeps raw bytes in
 memory, and stores only editable structured output. Matching recommends roles;
 founders remain responsible for every hiring decision.
 
-Fallback venture attribution and the fictional-data boundary are documented in
-[docs/DEMO_DATA_SOURCES.md](docs/DEMO_DATA_SOURCES.md). Security guidance is in
-[SECURITY.md](SECURITY.md).
-
-## Submission material
-
-- [Technical report](docs/TECHNICAL_REPORT.md)
-- [10-minute demonstration script](docs/DEMO_SCRIPT.md)
-- [Codebase study guide](docs/STUDY_GUIDE.md)
-- [Submission checklist](docs/SUBMISSION_CHECKLIST.md)
-- [Project guide](PROJECT_GUIDE.md)
+Fallback venture attribution and the fictional-data boundary are kept with the
+seed data and asset sources. Security guidance is in [SECURITY.md](SECURITY.md).
 
 Unfold is an educational prototype built for Mobile Application Development. It
 demonstrates authentication, cloud persistence, role-aware workflows, CRUD,
