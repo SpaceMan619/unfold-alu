@@ -12,6 +12,7 @@ export 'auth_models.dart';
 export 'auth_repository.dart';
 export 'session_state.dart';
 
+// keeps firebase identity and profile state in one place
 class SessionController extends Notifier<SessionState> {
   StreamSubscription<String?>? subscription;
   bool isRegistering = false;
@@ -101,6 +102,7 @@ class SessionController extends Notifier<SessionState> {
     }
   }
 
+  // signs in with google and applies the alu account check
   Future<bool> signInWithGoogle() async {
     isRegistering = true;
     state = state.copyWith(isSubmitting: true, clearError: true);

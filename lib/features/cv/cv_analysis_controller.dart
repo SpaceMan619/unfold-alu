@@ -92,6 +92,7 @@ final cvUserIdProvider = Provider<String>(
   (ref) => ref.watch(sessionProvider.select((session) => session.uid)),
 );
 
+// turns a selected cv into editable profile evidence
 class CvAnalysisController extends Notifier<CvAnalysisState> {
   @override
   CvAnalysisState build() {
@@ -131,6 +132,7 @@ class CvAnalysisController extends Notifier<CvAnalysisState> {
     );
   }
 
+  // sends the pdf to firebase ai logic and saves structured results
   Future<void> analyze() async {
     final bytes = state.bytes;
     if (bytes == null) return;

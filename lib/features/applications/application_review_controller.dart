@@ -78,6 +78,7 @@ class ApplicationReviewController extends Notifier<List<FounderApplication>> {
     return previews;
   }
 
+  // updates the founder pipeline and rolls back a failed write
   Future<void> updateStatus(
     String applicationId,
     ApplicationStatus status,

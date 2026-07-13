@@ -54,6 +54,7 @@ class OpportunityActivity {
   }
 }
 
+// streams roles and keeps saved and applied state together
 class OpportunityActivityController extends Notifier<OpportunityActivity> {
   StreamSubscription<List<OpportunityApplication>>? applicationSubscription;
 

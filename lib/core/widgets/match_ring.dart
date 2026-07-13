@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/unfold_theme.dart';
 
+// paints the cached score without restarting an animation while scrolling
 class MatchRing extends StatelessWidget {
   const MatchRing({
     super.key,

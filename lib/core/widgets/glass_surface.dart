@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// shared lightweight surface for the app's glass-inspired cards
 class GlassSurface extends StatelessWidget {
   const GlassSurface({
     required this.child,
