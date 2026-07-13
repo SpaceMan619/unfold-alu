@@ -607,10 +607,23 @@ class _CvIntelligenceCard extends ConsumerWidget {
                   style: const TextStyle(color: Colors.redAccent),
                 ),
                 const SizedBox(height: 10),
-                TextButton(
-                  onPressed: () =>
-                      ref.read(cvAnalysisProvider.notifier).selectCv(),
-                  child: const Text('Choose another PDF'),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () =>
+                            ref.read(cvAnalysisProvider.notifier).analyze(),
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Retry analysis'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () =>
+                          ref.read(cvAnalysisProvider.notifier).selectCv(),
+                      child: const Text('New PDF'),
+                    ),
+                  ],
                 ),
               ],
             )
