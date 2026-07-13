@@ -125,7 +125,7 @@ For another Firebase project:
 2. Enable **Authentication > Sign-in method > Email/Password** and **Google**.
 3. Add development/release SHA fingerprints required by Google sign-in.
 4. Create Cloud Firestore.
-5. Open **Firebase AI Logic**, choose the Gemini Developer API, and enable App Check. Debug builds use the debug provider; release builds use Play Integrity.
+5. Open **Firebase AI Logic**, choose the Gemini Developer API, and enable App Check. Debug builds use the debug provider; release builds use Play Integrity. For APKs distributed outside Google Play, enable the Play Integrity API and configure App Check to allow unrecognized app versions while still requiring device integrity.
 6. Regenerate Android configuration and deploy rules:
 
 ```bash

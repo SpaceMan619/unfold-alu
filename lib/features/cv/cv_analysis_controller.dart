@@ -183,12 +183,12 @@ class CvAnalysisController extends Notifier<CvAnalysisState> {
         summary: summary,
       );
       await _save();
-    } catch (_) {
+    } catch (error) {
       state = CvAnalysisState(
         stage: CvAnalysisStage.failed,
         fileName: selected.fileName,
         bytes: bytes,
-        error: 'AI analysis is not enabled yet. Open Firebase AI Logic setup.',
+        error: _analysisErrorMessage(error),
       );
     }
   }
@@ -226,3 +226,34 @@ final cvAnalysisProvider =
     NotifierProvider<CvAnalysisController, CvAnalysisState>(
       CvAnalysisController.new,
     );
+
+String _analysisErrorMessage(Object error) {
+  if (error is ServiceApiNotEnabled) {
+    return 'Firebase AI Logic is still starting. Please try again shortly.';
+  }
+  if (error is QuotaExceeded) {
+    return 'The AI usage limit has been reached. Please try again later.';
+  }
+  if (error is UnsupportedUserLocation) {
+    return 'AI analysis is not available in this location.';
+  }
+  if (error is FormatException) {
+    return 'The CV was read, but the response was incomplete. Try again.';
+  }
+
+  final message = error.toString().toLowerCase();
+  if (message.contains('app check') ||
+      message.contains('appcheck') ||
+      message.contains('integrity') ||
+      message.contains('attestation') ||
+      message.contains('permission_denied') ||
+      message.contains('403')) {
+    return 'Device verification failed. Reopen Unfold and try again.';
+  }
+  if (message.contains('network') ||
+      message.contains('socket') ||
+      message.contains('timeout')) {
+    return 'Check your connection, then try the analysis again.';
+  }
+  return 'CV analysis could not be completed. Please try again.';
+}
