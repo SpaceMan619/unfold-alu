@@ -142,6 +142,7 @@ class _ApplicationTimeline extends StatelessWidget {
       ApplicationStatus.submitted => 0,
       ApplicationStatus.reviewing => 1,
       ApplicationStatus.shortlisted => 2,
+      ApplicationStatus.waitlisted => 2,
       ApplicationStatus.accepted => 3,
       ApplicationStatus.rejected => 2,
     };

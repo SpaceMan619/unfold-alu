@@ -68,6 +68,12 @@ applications/{applicationId}
 bookmarks/{userId}/items/{opportunityId}
 ```
 
+Founder Studio demo applicants are idempotently seeded into the same
+`applications/{applicationId}` collection as real submissions. The `isDemo`
+field keeps them visibly fictional, while `founderId`, `status`, timestamps,
+contact details, and status updates follow the production schema and persist
+across restarts.
+
 See [PROJECT_GUIDE.md](PROJECT_GUIDE.md) for a concise walkthrough.
 
 ## Project structure

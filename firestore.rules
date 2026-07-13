@@ -55,20 +55,29 @@ service cloud.firestore {
 
     match /applications/{applicationId} {
       allow create: if signedIn()
-        && request.resource.data.studentId == request.auth.uid
-        && request.resource.data.status == 'submitted'
         && request.resource.data.founderId is string
         && (
-          (request.resource.data.opportunityId.matches('demo-.*')
+          (request.resource.data.isDemo == true
+            && applicationId.matches('demo-applicant-.*')
+            && request.resource.data.opportunityId == 'demo-founder-role'
+            && request.resource.data.founderId == request.auth.uid
+            && request.resource.data.studentId.matches('demo-student-.*')
+            && request.resource.data.status in
+              ['submitted', 'reviewing', 'shortlisted', 'waitlisted', 'accepted', 'rejected'])
+          || (request.resource.data.studentId == request.auth.uid
+            && request.resource.data.status == 'submitted'
+            && request.resource.data.opportunityId.matches('demo-.*')
             && request.resource.data.founderId == 'unfold-seed')
-          || (
-            exists(/databases/$(database)/documents/opportunities/$(request.resource.data.opportunityId))
+          || (request.resource.data.studentId == request.auth.uid
+            && request.resource.data.status == 'submitted'
+            && exists(/databases/$(database)/documents/opportunities/$(request.resource.data.opportunityId))
             && get(/databases/$(database)/documents/opportunities/$(request.resource.data.opportunityId)).data.ownerId
               == request.resource.data.founderId
           )
         );
       allow read: if signedIn()
-        && (resource.data.studentId == request.auth.uid
+        && (applicationId.matches('demo-applicant-' + request.auth.uid + '-.*')
+          || resource.data.studentId == request.auth.uid
           || resource.data.founderId == request.auth.uid
           || isAdmin());
       allow update: if signedIn()
@@ -77,7 +86,7 @@ service cloud.firestore {
         && request.resource.data.founderId == resource.data.founderId
         && request.resource.data.opportunityId == resource.data.opportunityId
         && request.resource.data.status in
-          ['submitted', 'reviewing', 'shortlisted', 'accepted', 'rejected'];
+          ['submitted', 'reviewing', 'shortlisted', 'waitlisted', 'accepted', 'rejected'];
       allow delete: if signedIn()
         && resource.data.studentId == request.auth.uid;
     }

@@ -11,6 +11,7 @@ class FakeApplicationRepository implements ApplicationRepository {
   final founderApplications = StreamController<List<OpportunityApplication>>();
   String? updatedId;
   ApplicationStatus? updatedStatus;
+  List<OpportunityApplication> seeded = const [];
 
   @override
   Stream<List<OpportunityApplication>> watchForFounder(String founderId) =>
@@ -28,6 +29,11 @@ class FakeApplicationRepository implements ApplicationRepository {
 
   @override
   Future<void> submit(OpportunityApplication application) async {}
+
+  @override
+  Future<void> seedFounderDemos(
+    List<OpportunityApplication> applications,
+  ) async => seeded = applications;
 
   @override
   Future<void> withdraw(String id) async {}
@@ -68,18 +74,55 @@ void main() {
 
       await container
           .read(applicationReviewProvider.notifier)
-          .updateStatus('preview-imani', ApplicationStatus.accepted);
+          .updateStatus(
+            'demo-applicant-preview-founder-imani',
+            ApplicationStatus.waitlisted,
+          );
 
       expect(
         container
             .read(applicationReviewProvider)
-            .firstWhere((item) => item.application.id == 'preview-imani')
+            .firstWhere(
+              (item) =>
+                  item.application.id == 'demo-applicant-preview-founder-imani',
+            )
             .application
             .status,
-        ApplicationStatus.accepted,
+        ApplicationStatus.waitlisted,
       );
     },
   );
+
+  test('empty founder pipeline seeds persistent demo records once', () async {
+    final repository = FakeApplicationRepository();
+    final container = ProviderContainer(
+      overrides: [
+        applicationRepositoryProvider.overrideWithValue(repository),
+        applicationSessionProvider.overrideWithValue(
+          const SessionState(
+            stage: SessionStage.authenticated,
+            uid: 'founder-seed',
+            role: AccountRole.student,
+          ),
+        ),
+      ],
+    );
+    addTearDown(() async {
+      container.dispose();
+      await repository.founderApplications.close();
+    });
+
+    container.read(applicationReviewProvider);
+    repository.founderApplications.add(const []);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(repository.seeded, hasLength(3));
+    expect(repository.seeded.every((item) => item.isDemo), isTrue);
+    expect(
+      repository.seeded.every((item) => item.founderId == 'founder-seed'),
+      isTrue,
+    );
+  });
 
   test('founder watches and updates repository applications', () async {
     final repository = FakeApplicationRepository();

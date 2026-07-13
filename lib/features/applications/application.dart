@@ -1,6 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum ApplicationStatus { submitted, reviewing, shortlisted, accepted, rejected }
+enum ApplicationStatus {
+  submitted,
+  reviewing,
+  shortlisted,
+  waitlisted,
+  accepted,
+  rejected,
+}
 
 class OpportunityApplication {
   const OpportunityApplication({
@@ -18,6 +25,7 @@ class OpportunityApplication {
     this.roleTitle = 'Opportunity applicant',
     this.skills = const [],
     this.location = 'ALU community',
+    this.isDemo = false,
   });
 
   final String id;
@@ -34,6 +42,7 @@ class OpportunityApplication {
   final String roleTitle;
   final List<String> skills;
   final String location;
+  final bool isDemo;
 
   OpportunityApplication copyWith({ApplicationStatus? status}) {
     return OpportunityApplication(
@@ -51,6 +60,7 @@ class OpportunityApplication {
       roleTitle: roleTitle,
       skills: skills,
       location: location,
+      isDemo: isDemo,
     );
   }
 
@@ -73,6 +83,7 @@ class OpportunityApplication {
       roleTitle: map['roleTitle'] as String? ?? 'Opportunity applicant',
       skills: List<String>.from(map['skills'] as List? ?? const []),
       location: map['location'] as String? ?? 'ALU community',
+      isDemo: map['isDemo'] as bool? ?? false,
     );
   }
 
@@ -91,6 +102,7 @@ class OpportunityApplication {
       'roleTitle': roleTitle,
       'skills': skills,
       'location': location,
+      'isDemo': isDemo,
     };
   }
 }

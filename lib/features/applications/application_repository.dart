@@ -6,6 +6,7 @@ abstract interface class ApplicationRepository {
   Stream<List<OpportunityApplication>> watchForStudent(String studentId);
   Stream<List<OpportunityApplication>> watchForFounder(String founderId);
   Future<void> submit(OpportunityApplication application);
+  Future<void> seedFounderDemos(List<OpportunityApplication> applications);
   Future<void> updateStatus(String id, ApplicationStatus status);
   Future<void> withdraw(String id);
 }
@@ -48,6 +49,41 @@ class FirestoreApplicationRepository implements ApplicationRepository {
       ...application.toMap(),
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  Future<void> seedFounderDemos(
+    List<OpportunityApplication> applications,
+  ) async {
+    await firestore.runTransaction((transaction) async {
+      final records =
+          <
+            ({
+              OpportunityApplication application,
+              DocumentReference<Map<String, dynamic>> reference,
+              bool exists,
+            })
+          >[];
+      for (final application in applications) {
+        final reference = collection.doc(application.id);
+        final existing = await transaction.get(reference);
+        records.add((
+          application: application,
+          reference: reference,
+          exists: existing.exists,
+        ));
+      }
+      for (final record in records) {
+        if (!record.exists) {
+          final application = record.application;
+          transaction.set(record.reference, {
+            ...application.toMap(),
+            'createdAt': Timestamp.fromDate(application.createdAt),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
     });
   }
 

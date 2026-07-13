@@ -377,7 +377,7 @@ class _ApplicantPipelineCard extends StatelessWidget {
                 ? 'Fictional applicants for testing founder decisions. Real applicants replace them automatically.'
                 : '${count(ApplicationStatus.submitted)} new · '
                       '${count(ApplicationStatus.reviewing)} reviewing · '
-                      '${count(ApplicationStatus.shortlisted)} shortlisted',
+                      '${count(ApplicationStatus.waitlisted)} waitlisted',
             style: const TextStyle(color: UnfoldColors.muted, height: 1.4),
           ),
           const SizedBox(height: 15),
@@ -442,7 +442,7 @@ class _ApplicationReviewSheet extends ConsumerWidget {
             ),
             Text(
               showingPreviews
-                  ? 'Try the complete review flow. These fictional applicants reset when the app restarts.'
+                  ? 'These fictional applicants use the live application schema, so your decisions persist in Founder Studio.'
                   : 'Move each person through a clear, simple hiring pipeline.',
               style: const TextStyle(color: UnfoldColors.muted),
             ),
@@ -522,6 +522,26 @@ class _ApplicantCard extends ConsumerWidget {
             children: [for (final skill in item.skills) _SkillChip(skill)],
           ),
           const SizedBox(height: 16),
+          if (item.application.studentEmail.isNotEmpty) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => launchUrl(
+                  Uri(
+                    scheme: 'mailto',
+                    path: item.application.studentEmail,
+                    queryParameters: {
+                      'subject':
+                          'Regarding your ${item.roleTitle} application on Unfold',
+                    },
+                  ),
+                ),
+                icon: const Icon(Icons.mail_outline_rounded),
+                label: const Text('Email applicant'),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           DropdownButtonFormField<ApplicationStatus>(
             key: ValueKey('status-${item.application.id}'),
             initialValue: status,
@@ -577,6 +597,7 @@ class _ApplicationStatusPill extends StatelessWidget {
       ApplicationStatus.accepted => UnfoldColors.mint,
       ApplicationStatus.rejected => Colors.redAccent,
       ApplicationStatus.shortlisted => UnfoldColors.amber,
+      ApplicationStatus.waitlisted => Colors.deepOrangeAccent,
       ApplicationStatus.reviewing => UnfoldColors.cyan,
       ApplicationStatus.submitted => UnfoldColors.muted,
     };
@@ -603,6 +624,7 @@ String _statusLabel(ApplicationStatus status) => switch (status) {
   ApplicationStatus.submitted => 'Submitted',
   ApplicationStatus.reviewing => 'Reviewing',
   ApplicationStatus.shortlisted => 'Shortlisted',
+  ApplicationStatus.waitlisted => 'Waitlisted',
   ApplicationStatus.accepted => 'Accepted',
   ApplicationStatus.rejected => 'Rejected',
 };

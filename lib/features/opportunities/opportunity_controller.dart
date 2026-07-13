@@ -64,11 +64,7 @@ class OpportunityActivityController extends Notifier<OpportunityActivity> {
     final repository = ref.watch(opportunityRepositoryProvider);
     if (repository != null) {
       final subscription = repository.watchActive().listen((opportunities) {
-        state = state.copyWith(
-          opportunities: opportunities.isEmpty
-              ? _seedOpportunities
-              : opportunities,
-        );
+        state = state.copyWith(opportunities: _mergeWithSeeds(opportunities));
       });
       ref.onDispose(subscription.cancel);
     }
@@ -105,6 +101,14 @@ class OpportunityActivityController extends Notifier<OpportunityActivity> {
   List<Opportunity> get _seedOpportunities => sourcedVentureOpportunitySeeds
       .map((seed) => seed.opportunity)
       .toList(growable: false);
+
+  List<Opportunity> _mergeWithSeeds(List<Opportunity> live) {
+    final liveIds = live.map((item) => item.id).toSet();
+    return [
+      ...live,
+      ..._seedOpportunities.where((item) => !liveIds.contains(item.id)),
+    ];
+  }
 
   Future<void> toggleSaved(String id) async {
     final next = {...state.savedIds};

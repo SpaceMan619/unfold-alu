@@ -94,7 +94,8 @@ class _OpportunitySheet extends StatelessWidget {
                     scheme: 'mailto',
                     path: opportunity.contactEmail,
                     queryParameters: {
-                      'subject': 'Question about ${opportunity.role}',
+                      'subject':
+                          'Question regarding (${opportunity.role}) on Unfold.',
                     },
                   ),
                 ),

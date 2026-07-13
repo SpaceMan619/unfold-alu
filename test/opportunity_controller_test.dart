@@ -53,6 +53,11 @@ class FakeApplicationRepository implements ApplicationRepository {
   }
 
   @override
+  Future<void> seedFounderDemos(
+    List<OpportunityApplication> applications,
+  ) async {}
+
+  @override
   Future<void> updateStatus(String id, ApplicationStatus status) async {}
 
   @override
@@ -124,7 +129,7 @@ void main() {
   );
 
   test(
-    'live opportunities replace seeds and publishing uses repository',
+    'live opportunities are added to seeds and publishing uses repository',
     () async {
       final repository = FakeOpportunityRepository();
       final container = ProviderContainer(
@@ -152,7 +157,15 @@ void main() {
       repository.stream.add(const [live]);
       await Future<void>.delayed(Duration.zero);
 
-      expect(container.read(opportunityActivityProvider).opportunities, [live]);
+      final opportunities = container
+          .read(opportunityActivityProvider)
+          .opportunities;
+      expect(opportunities.first, live);
+      expect(opportunities.length, greaterThan(1));
+      expect(
+        opportunities.any((item) => item.id == 'demo-kayko-flutter'),
+        isTrue,
+      );
       await controller.addOpportunity(live);
       expect(repository.created, live);
     },
