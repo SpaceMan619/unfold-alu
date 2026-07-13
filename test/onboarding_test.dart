@@ -3,40 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unfold/app/unfold_app.dart';
 import 'package:unfold/features/auth/session_controller.dart';
+import 'package:unfold/features/home/home_shell.dart';
 
-class FakeAuthRepository implements AuthRepository {
-  @override
-  Future<UserProfile?> signInWithGoogle({AccountRole? role}) async => null;
-
-  @override
-  Future<UserProfile> saveGoogleProfile({required AccountRole role}) async {
-    return UserProfile(
-      uid: 'google-user',
-      name: 'Rajveer Jolly',
-      email: 'rajveer@alustudent.com',
-      role: role,
-    );
-  }
-
-  @override
-  Stream<String?> authStateChanges() => Stream.value(null);
-
-  @override
-  Future<UserProfile?> profile(String uid) async => null;
-
-  @override
-  Future<UserProfile> register({
-    required String name,
-    required String email,
-    required String password,
-    required AccountRole role,
-  }) async {
-    return UserProfile(uid: 'test-user', name: name, email: email, role: role);
-  }
-
-  @override
-  Future<void> signOut() async {}
-}
+import 'support/fake_auth_repository.dart';
 
 void main() {
   testWidgets('student can complete demo onboarding', (tester) async {
@@ -65,6 +34,6 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('complete-profile')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Good morning, Rajveer'), findsOneWidget);
+    expect(find.byType(HomeShell), findsOneWidget);
   });
 }

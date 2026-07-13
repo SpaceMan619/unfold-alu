@@ -78,9 +78,9 @@ lib/
 ├── core/                   # backend configuration and shared widgets
 ├── features/
 │   ├── applications/       # form, model, repository, founder review
-│   ├── auth/               # Firebase auth and onboarding
+│   ├── auth/               # session, Firebase auth, and onboarding screens
 │   ├── cv/                 # PDF validation and Firebase AI analysis
-│   ├── home/               # student/founder shells and screens
+│   ├── home/               # shell plus focused views, sheets, and widgets
 │   └── opportunities/      # model, seed data, repository, controller
 ├── firebase_options.dart   # generated Android Firebase options
 └── main.dart
@@ -125,7 +125,7 @@ For another Firebase project:
 2. Enable **Authentication > Sign-in method > Email/Password** and **Google**.
 3. Add development/release SHA fingerprints required by Google sign-in.
 4. Create Cloud Firestore.
-5. Open **Firebase AI Logic**, choose the Gemini Developer API, and enable App Check. Development builds use the App Check debug provider; add the printed debug token in the Firebase console.
+5. Open **Firebase AI Logic**, choose the Gemini Developer API, and enable App Check. Debug builds use the debug provider; release builds use Play Integrity.
 6. Regenerate Android configuration and deploy rules:
 
 ```bash
@@ -137,13 +137,7 @@ firebase deploy --only firestore:rules,firestore:indexes
 
 7. Confirm `lib/firebase_options.dart`, `android/app/google-services.json`, `.firebaserc`, and `firebase.json` point to the intended project.
 
-For a local debug/release demonstration, add the registered App Check token to the ignored `android/local.properties` file:
-
-```properties
-app.check.debug.secret=your-registered-debug-token
-```
-
-Do not commit that value. The checked-in build configuration leaves it empty by default.
+When running a debug build, register the token printed by the Android logs under **App Check > Apps > Manage debug tokens**. Never inject a debug token into a release APK. Release testing requires the Android app's SHA-256 certificate to be registered in Firebase.
 
 Current Firestore rules restrict new database profiles to authenticated ALU addresses ending in `@alustudent.com` or `@alueducation.com`. Google sign-in performs the same domain check in the client.
 

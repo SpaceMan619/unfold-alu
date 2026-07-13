@@ -6,10 +6,16 @@ applicants. Students discover roles, save them, apply, and track decisions.
 
 ## State flow
 
-`SessionController` owns authentication and role state. Feature controllers own
-opportunities, bookmarks, applications, CV analysis, and profile-photo updates.
-Widgets read Riverpod providers; repositories isolate Firebase Authentication
-and Firestore access, while Firebase AI Logic handles local PDF analysis.
+`SessionController` owns authentication and role state. Its models, state, and
+Firebase repository live in separate files while `session_controller.dart`
+keeps one stable import surface. Feature controllers own opportunities,
+bookmarks, applications, CV analysis, and profile-photo updates. Widgets read
+Riverpod providers; repositories isolate Firebase Authentication and Firestore
+access, while Firebase AI Logic handles local PDF analysis.
+
+The home feature is split into focused views, sheets, and shared widgets under
+one Dart library. This keeps private UI helpers private without returning to a
+single multi-thousand-line screen file.
 
 ## Firebase data
 

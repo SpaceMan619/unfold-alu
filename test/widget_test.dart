@@ -2,8 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unfold/app/unfold_app.dart';
+import 'package:unfold/features/auth/session_controller.dart';
+
+import 'support/fake_auth_repository.dart';
 
 void main() {
+  testWidgets('student can open every primary tab', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        ],
+        child: const UnfoldApp(demoAuthenticated: true),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('nav-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('Saved'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('nav-2')));
+    await tester.pumpAndSettle();
+    expect(find.text('Applications'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('nav-3')));
+    await tester.pumpAndSettle();
+    expect(find.text('Profile details'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('nav-0')));
+    await tester.pumpAndSettle();
+    expect(find.text('Your next chapter\nis ready to unfold.'), findsOneWidget);
+  });
+
   testWidgets('student can save and view an opportunity', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(child: UnfoldApp(demoAuthenticated: true)),
