@@ -35,4 +35,52 @@ void main() {
     expect(restored.contactEmail, isEmpty);
     expect(restored.isVolunteering, isFalse);
   });
+
+  test('deadline survives Firestore map conversion', () {
+    final deadline = DateTime(2026, 8, 14);
+    final opportunity = Opportunity(
+      id: 'deadline-role',
+      role: 'Product intern',
+      startup: 'Prototype venture',
+      summary: 'Support product discovery.',
+      location: 'Kigali',
+      commitment: '8 hrs / week',
+      skills: const ['Research'],
+      match: 0,
+      color: const Color(0xff68ddc9),
+      deadline: deadline,
+    );
+
+    final restored = Opportunity.fromMap(opportunity.id, opportunity.toMap());
+
+    expect(restored.deadline, deadline);
+  });
+
+  test('deadline state distinguishes open, urgent, and closed roles', () {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    Opportunity withDeadline(DateTime? deadline) => Opportunity(
+      id: 'deadline-state',
+      role: 'Product intern',
+      startup: 'Prototype venture',
+      summary: 'Support product discovery.',
+      location: 'Kigali',
+      commitment: '8 hrs / week',
+      skills: const ['Research'],
+      match: 0,
+      color: const Color(0xff68ddc9),
+      deadline: deadline,
+    );
+
+    expect(withDeadline(null).deadlineLabel, isNull);
+    expect(withDeadline(today).deadlineLabel, 'Closes today');
+    expect(
+      withDeadline(today.add(const Duration(days: 5))).closingSoon,
+      isTrue,
+    );
+    expect(
+      withDeadline(today.subtract(const Duration(days: 1))).isClosed,
+      isTrue,
+    );
+  });
 }

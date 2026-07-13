@@ -430,6 +430,12 @@ class _OpportunityCard extends StatelessWidget {
                 label: opportunity.location,
               ),
               _CompensationPill(opportunity: opportunity),
+              if (opportunity.closingSoon)
+                _OpportunityFact(
+                  icon: Icons.timelapse_rounded,
+                  label: opportunity.deadlineLabel!,
+                  color: UnfoldColors.amber,
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -499,29 +505,43 @@ class _OpportunityCard extends StatelessWidget {
 }
 
 class _OpportunityFact extends StatelessWidget {
-  const _OpportunityFact({required this.icon, required this.label});
+  const _OpportunityFact({
+    required this.icon,
+    required this.label,
+    this.color,
+  });
 
   final IconData icon;
   final String label;
 
+  /// When set, tints the chip (used for the amber "closing soon" state).
+  final Color? color;
+
   @override
   Widget build(BuildContext context) {
+    final tint = color ?? UnfoldColors.muted;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .055),
+        color: color == null
+            ? Colors.white.withValues(alpha: .055)
+            : color!.withValues(alpha: .12),
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: Colors.white.withValues(alpha: .07)),
+        border: Border.all(
+          color: color == null
+              ? Colors.white.withValues(alpha: .07)
+              : color!.withValues(alpha: .3),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: UnfoldColors.muted),
+          Icon(icon, size: 13, color: tint),
           const SizedBox(width: 5),
           Text(
             label,
-            style: const TextStyle(
-              color: UnfoldColors.muted,
+            style: TextStyle(
+              color: tint,
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),

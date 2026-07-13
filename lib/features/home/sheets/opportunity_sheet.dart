@@ -33,6 +33,7 @@ class _OpportunitySheet extends StatelessWidget {
         child: Stack(
           children: [
             ListView(
+              key: const ValueKey('opportunity-sheet-scroll'),
               controller: scrollController,
               padding: const EdgeInsets.fromLTRB(22, 12, 22, 116),
               children: [
@@ -147,7 +148,11 @@ class _OpportunitySheet extends StatelessWidget {
               left: 0,
               right: 0,
               bottom: 0,
-              child: _SheetActionBar(applied: applied, onApply: onApply),
+              child: _SheetActionBar(
+                opportunity: opportunity,
+                applied: applied,
+                onApply: onApply,
+              ),
             ),
           ],
         ),
@@ -511,12 +516,22 @@ class _RelatedRow extends StatelessWidget {
 }
 
 class _SheetActionBar extends StatelessWidget {
-  const _SheetActionBar({required this.applied, required this.onApply});
+  const _SheetActionBar({
+    required this.opportunity,
+    required this.applied,
+    required this.onApply,
+  });
+
+  final Opportunity opportunity;
   final bool applied;
   final VoidCallback onApply;
 
   @override
   Widget build(BuildContext context) {
+    final label = opportunity.deadlineLabel;
+    final urgent = opportunity.closingSoon || opportunity.isClosed;
+    final closed = opportunity.isClosed;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
       decoration: BoxDecoration(
@@ -531,22 +546,53 @@ class _SheetActionBar extends StatelessWidget {
           stops: const [0, 0.42, 1],
         ),
       ),
-      child: FilledButton(
-        onPressed: applied ? null : onApply,
-        style: FilledButton.styleFrom(
-          backgroundColor: UnfoldColors.mint,
-          foregroundColor: UnfoldColors.ink,
-          disabledBackgroundColor: Colors.white.withValues(alpha: .1),
-          disabledForegroundColor: UnfoldColors.muted,
-          minimumSize: const Size.fromHeight(54),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(27),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (label != null) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  closed ? Icons.lock_clock_rounded : Icons.schedule_rounded,
+                  size: 14,
+                  color: urgent ? UnfoldColors.amber : UnfoldColors.muted,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: urgent ? UnfoldColors.amber : UnfoldColors.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+          ],
+          FilledButton(
+            onPressed: (applied || closed) ? null : onApply,
+            style: FilledButton.styleFrom(
+              backgroundColor: UnfoldColors.mint,
+              foregroundColor: UnfoldColors.ink,
+              disabledBackgroundColor: Colors.white.withValues(alpha: .1),
+              disabledForegroundColor: UnfoldColors.muted,
+              minimumSize: const Size.fromHeight(54),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(27),
+              ),
+            ),
+            child: Text(
+              closed
+                  ? 'Applications closed'
+                  : applied
+                  ? 'Application submitted'
+                  : 'Start application',
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+            ),
           ),
-        ),
-        child: Text(
-          applied ? 'Application submitted' : 'Start application',
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
-        ),
+        ],
       ),
     );
   }

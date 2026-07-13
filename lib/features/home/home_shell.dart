@@ -141,13 +141,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     );
   }
 
-  // The student's own skills, used to score matches. Real skills come from the
-  // CV analysis; demo mode uses a representative set so the feature is visible.
-  List<String> _userSkills() {
+  List<String> _userSkills({bool listen = true}) {
     if (widget.demoMode) {
       return const ['Flutter', 'Firebase', 'Python', 'UX research', 'Outreach'];
     }
-    return ref.watch(cvAnalysisProvider).skills;
+    final analysis = listen
+        ? ref.watch(cvAnalysisProvider)
+        : ref.read(cvAnalysisProvider);
+    return analysis.skills;
   }
 
   Widget _studentNavigation() {
@@ -303,7 +304,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   void _showOpportunity(Opportunity opportunity) {
     final activity = ref.read(opportunityActivityProvider);
-    final userSkills = _userSkills();
+    final userSkills = _userSkills(listen: false);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

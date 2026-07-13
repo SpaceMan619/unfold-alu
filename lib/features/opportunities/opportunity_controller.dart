@@ -98,8 +98,20 @@ class OpportunityActivityController extends Notifier<OpportunityActivity> {
     return initial;
   }
 
+  static const _demoDeadlineDays = <String, int>{
+    'demo-kayko-flutter': 12,
+    'demo-starlight-growth': 4,
+    'demo-signvrse-accessibility': 2,
+  };
+
   List<Opportunity> get _seedOpportunities => sourcedVentureOpportunitySeeds
-      .map((seed) => seed.opportunity)
+      .map((seed) {
+        final days = _demoDeadlineDays[seed.opportunity.id];
+        if (days == null) return seed.opportunity;
+        return seed.opportunity.copyWith(
+          deadline: DateTime.now().add(Duration(days: days)),
+        );
+      })
       .toList(growable: false);
 
   List<Opportunity> _mergeWithSeeds(List<Opportunity> live) {

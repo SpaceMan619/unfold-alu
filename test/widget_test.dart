@@ -100,7 +100,7 @@ void main() {
   testWidgets('opportunity sheet shows the match breakdown and pinned apply', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(420, 1000));
+    await tester.binding.setSurfaceSize(const Size(360, 780));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       const ProviderScope(child: UnfoldApp(demoAuthenticated: true)),
@@ -111,13 +111,20 @@ void main() {
     await tester.tap(card);
     await tester.pumpAndSettle();
 
-    // Demo profile has Flutter + Firebase of the role's three skills → 67%.
     expect(find.text('WHY YOU MATCH — 67%'), findsOneWidget);
     expect(find.text('PAY'), findsOneWidget);
     expect(find.text("WHAT YOU'LL BUILD"), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('MORE LIKE THIS'),
+      240,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('opportunity-sheet-scroll')),
+        matching: find.byType(Scrollable),
+      ),
+    );
     expect(find.text('MORE LIKE THIS'), findsOneWidget);
-    // Apply stays pinned at the bottom of the sheet.
     expect(find.text('Start application'), findsOneWidget);
+    expect(find.text('Closes in 12 days'), findsOneWidget);
   });
 
   testWidgets('student can save and view an opportunity', (tester) async {

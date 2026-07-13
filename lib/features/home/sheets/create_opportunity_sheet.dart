@@ -23,6 +23,7 @@ class _CreateOpportunitySheetState extends State<_CreateOpportunitySheet> {
   bool isPaid = false;
   String currency = 'RWF';
   OpportunityType opportunityType = OpportunityType.internship;
+  DateTime? deadline;
   bool submitting = false;
 
   @override
@@ -39,6 +40,12 @@ class _CreateOpportunitySheetState extends State<_CreateOpportunitySheet> {
       amountController.text = initial.monthlyAmount?.toStringAsFixed(0) ?? '';
       contactEmailController.text = initial.contactEmail;
       opportunityType = initial.type;
+      deadline = initial.deadline;
+      arrangement = switch (initial.location) {
+        final value when value.contains('Remote') => 'Remote',
+        final value when value.contains('On-site') => 'On-site',
+        _ => 'Hybrid',
+      };
     }
   }
 
@@ -140,6 +147,12 @@ class _CreateOpportunitySheetState extends State<_CreateOpportunitySheet> {
                 },
               ),
               const SizedBox(height: 12),
+              _DeadlineField(
+                deadline: deadline,
+                onPick: _pickDeadline,
+                onClear: () => setState(() => deadline = null),
+              ),
+              const SizedBox(height: 12),
               _OpportunityField(
                 controller: contactEmailController,
                 label: 'Contact email',
@@ -233,6 +246,23 @@ class _CreateOpportunitySheetState extends State<_CreateOpportunitySheet> {
         : null;
   }
 
+  Future<void> _pickDeadline() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final current = deadline;
+    final initialDate = current != null && !current.isBefore(today)
+        ? current
+        : today.add(const Duration(days: 14));
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 365)),
+      helpText: 'Applications close on',
+    );
+    if (picked != null) setState(() => deadline = picked);
+  }
+
   Future<void> _submit() async {
     if (!formKey.currentState!.validate()) return;
     final skills = skillsController.text
@@ -261,10 +291,83 @@ class _CreateOpportunitySheetState extends State<_CreateOpportunitySheet> {
         currency: currency,
         type: opportunityType,
         contactEmail: contactEmailController.text.trim(),
+        deadline: deadline,
       ),
     );
     if (mounted) setState(() => submitting = false);
   }
+}
+
+class _DeadlineField extends StatelessWidget {
+  const _DeadlineField({
+    required this.deadline,
+    required this.onPick,
+    required this.onClear,
+  });
+
+  final DateTime? deadline;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final set = deadline != null;
+    return InkWell(
+      onTap: onPick,
+      borderRadius: BorderRadius.circular(18),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Application deadline (optional)',
+          filled: true,
+          fillColor: Colors.white.withValues(alpha: 0.05),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: const BorderSide(color: Colors.white12),
+          ),
+          prefixIcon: const Icon(
+            Icons.event_outlined,
+            color: UnfoldColors.muted,
+          ),
+          suffixIcon: set
+              ? IconButton(
+                  tooltip: 'Clear deadline',
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  onPressed: onClear,
+                )
+              : null,
+        ),
+        child: Text(
+          set ? _formatDate(deadline!) : 'No deadline — open until filled',
+          style: TextStyle(
+            color: set ? Colors.white : UnfoldColors.muted,
+            fontWeight: set ? FontWeight.w700 : FontWeight.w400,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _formatDate(DateTime date) {
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return '${date.day} ${months[date.month - 1]} ${date.year}';
 }
 
 class _OpportunityField extends StatelessWidget {
