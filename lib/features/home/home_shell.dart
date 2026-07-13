@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/unfold_theme.dart';
 import '../../core/widgets/glass_surface.dart';
+import '../../core/widgets/match_ring.dart';
 import '../applications/application.dart';
 import '../applications/application_form_sheet.dart';
 import '../applications/application_review_controller.dart';
@@ -14,6 +15,7 @@ import '../auth/session_controller.dart';
 import '../cv/cv_analysis_controller.dart';
 import '../opportunities/opportunity.dart';
 import '../opportunities/opportunity_controller.dart';
+import '../opportunities/opportunity_match.dart';
 import '../profile/profile_photo_controller.dart';
 import '../startups/startup_controller.dart';
 
@@ -108,6 +110,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             .toList(),
         onOpen: _showOpportunity,
         onUnsave: ref.read(opportunityActivityProvider.notifier).toggleSaved,
+        userSkills: _userSkills(),
       );
     }
     if (studentTab == 2) {
@@ -134,7 +137,17 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       hasCvEvidence: widget.demoMode
           ? false
           : ref.watch(cvAnalysisProvider).hasEvidence,
+      userSkills: _userSkills(),
     );
+  }
+
+  // The student's own skills, used to score matches. Real skills come from the
+  // CV analysis; demo mode uses a representative set so the feature is visible.
+  List<String> _userSkills() {
+    if (widget.demoMode) {
+      return const ['Flutter', 'Firebase', 'Python', 'UX research', 'Outreach'];
+    }
+    return ref.watch(cvAnalysisProvider).skills;
   }
 
   Widget _studentNavigation() {
@@ -290,14 +303,34 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   void _showOpportunity(Opportunity opportunity) {
     final activity = ref.read(opportunityActivityProvider);
+    final userSkills = _userSkills();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _OpportunitySheet(
-        opportunity: opportunity,
-        applied: activity.appliedIds.contains(opportunity.id),
-        onApply: () => _showApplicationForm(opportunity),
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: .92,
+        minChildSize: .5,
+        maxChildSize: .96,
+        snap: true,
+        snapSizes: const [.92],
+        builder: (context, scrollController) => _OpportunitySheet(
+          opportunity: opportunity,
+          applied: activity.appliedIds.contains(opportunity.id),
+          onApply: () => _showApplicationForm(opportunity),
+          scrollController: scrollController,
+          userSkills: userSkills,
+          related: moreLikeThis(
+            activity.opportunities,
+            opportunity,
+            userSkills,
+          ),
+          onOpenRelated: (next) {
+            Navigator.pop(context);
+            _showOpportunity(next);
+          },
+        ),
       ),
     );
   }

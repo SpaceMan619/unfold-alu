@@ -5,10 +5,12 @@ class _SavedView extends StatelessWidget {
     required this.items,
     required this.onOpen,
     required this.onUnsave,
+    required this.userSkills,
   });
   final List<Opportunity> items;
   final ValueChanged<Opportunity> onOpen;
   final ValueChanged<String> onUnsave;
+  final List<String> userSkills;
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +28,7 @@ class _SavedView extends StatelessWidget {
                     (item) => _SavedOpportunityTile(
                       key: ValueKey('saved-${item.id}'),
                       opportunity: item,
+                      match: OpportunityMatch.of(item, userSkills),
                       onOpen: () => onOpen(item),
                       onUnsave: () => onUnsave(item.id),
                     ),
@@ -39,12 +42,14 @@ class _SavedView extends StatelessWidget {
 class _SavedOpportunityTile extends StatefulWidget {
   const _SavedOpportunityTile({
     required this.opportunity,
+    required this.match,
     required this.onOpen,
     required this.onUnsave,
     super.key,
   });
 
   final Opportunity opportunity;
+  final OpportunityMatch match;
   final VoidCallback onOpen;
   final VoidCallback onUnsave;
 
@@ -90,6 +95,7 @@ class _SavedOpportunityTileState extends State<_SavedOpportunityTile> {
                   child: _OpportunityCard(
                     opportunity: widget.opportunity,
                     saved: true,
+                    match: widget.match,
                     onSave: remove,
                     onTap: widget.onOpen,
                   ),

@@ -97,6 +97,29 @@ void main() {
     expect(find.text('Your next chapter\nis ready to unfold.'), findsOneWidget);
   });
 
+  testWidgets('opportunity sheet shows the match breakdown and pinned apply', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(420, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      const ProviderScope(child: UnfoldApp(demoAuthenticated: true)),
+    );
+
+    final card = find.text('Flutter product intern');
+    await tester.ensureVisible(card);
+    await tester.tap(card);
+    await tester.pumpAndSettle();
+
+    // Demo profile has Flutter + Firebase of the role's three skills → 67%.
+    expect(find.text('WHY YOU MATCH — 67%'), findsOneWidget);
+    expect(find.text('PAY'), findsOneWidget);
+    expect(find.text("WHAT YOU'LL BUILD"), findsOneWidget);
+    expect(find.text('MORE LIKE THIS'), findsOneWidget);
+    // Apply stays pinned at the bottom of the sheet.
+    expect(find.text('Start application'), findsOneWidget);
+  });
+
   testWidgets('student can save and view an opportunity', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(child: UnfoldApp(demoAuthenticated: true)),

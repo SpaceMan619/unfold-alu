@@ -10,6 +10,7 @@ class _DiscoverView extends StatefulWidget {
     required this.name,
     required this.photoBytes,
     required this.hasCvEvidence,
+    required this.userSkills,
   });
 
   final List<Opportunity> opportunities;
@@ -20,6 +21,7 @@ class _DiscoverView extends StatefulWidget {
   final String name;
   final Uint8List? photoBytes;
   final bool hasCvEvidence;
+  final List<String> userSkills;
 
   @override
   State<_DiscoverView> createState() => _DiscoverViewState();
@@ -239,6 +241,7 @@ class _DiscoverViewState extends State<_DiscoverView> {
             child: _OpportunityCard(
               opportunity: opportunity,
               saved: widget.saved.contains(opportunity.id),
+              match: OpportunityMatch.of(opportunity, widget.userSkills),
               onSave: () => widget.onSave(opportunity.id),
               onTap: () => widget.onOpen(opportunity),
             ),
@@ -324,12 +327,14 @@ class _OpportunityCard extends StatelessWidget {
   const _OpportunityCard({
     required this.opportunity,
     required this.saved,
+    required this.match,
     required this.onSave,
     required this.onTap,
   });
 
   final Opportunity opportunity;
   final bool saved;
+  final OpportunityMatch match;
   final VoidCallback onSave;
   final VoidCallback onTap;
 
@@ -380,6 +385,15 @@ class _OpportunityCard extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ),
+              Hero(
+                tag: 'match-ring-${opportunity.id}',
+                child: MatchRing(
+                  score: match.score,
+                  color: opportunity.color,
+                  hasSignal: match.hasSignal,
+                  size: 44,
                 ),
               ),
               IconButton(
@@ -434,29 +448,16 @@ class _OpportunityCard extends StatelessWidget {
             Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: opportunity.skills.take(3).map((skill) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .055),
-                    borderRadius: BorderRadius.circular(99),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: .08),
+              children: match.breakdown
+                  .take(3)
+                  .map(
+                    (signal) => _SkillTag(
+                      label: signal.skill,
+                      have: signal.have && match.hasSignal,
+                      accent: opportunity.color,
                     ),
-                  ),
-                  child: Text(
-                    skill,
-                    style: const TextStyle(
-                      color: UnfoldColors.muted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                );
-              }).toList(),
+                  )
+                  .toList(),
             ),
           ],
           const SizedBox(height: 14),
@@ -523,6 +524,55 @@ class _OpportunityFact extends StatelessWidget {
               color: UnfoldColors.muted,
               fontSize: 10,
               fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkillTag extends StatelessWidget {
+  const _SkillTag({
+    required this.label,
+    required this.have,
+    required this.accent,
+  });
+
+  final String label;
+  final bool have;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(have ? 8 : 9, 5, 9, 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: have ? .09 : .055),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(
+          color: have
+              ? accent.withValues(alpha: .45)
+              : Colors.white.withValues(alpha: .08),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (have) ...[
+            Container(
+              width: 5,
+              height: 5,
+              decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              color: have ? Colors.white : UnfoldColors.muted,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
