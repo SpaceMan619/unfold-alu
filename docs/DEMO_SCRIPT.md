@@ -29,6 +29,8 @@ Point out the ALU image, rotating message, neutral visual identity, and reachabl
 
 "This Firebase user is the identity currently driving the app. The session survives an app restart because Firebase restores it and the controller reloads the profile."
 
+**Do not open the code yet.** Keep the first half focused on the product.
+
 ## 1:25-2:45 - Discovery, search, and UI reasoning
 
 **Show:** Discover feed. Pull to refresh, search, select a category and paid filter, then open a role.
@@ -75,7 +77,9 @@ Open applicant management, change a prepared applicant from submitted to reviewi
 
 "Applications have six states: submitted, reviewing, shortlisted, waitlisted, accepted, and rejected. `ApplicationReviewController` changes the local item first and restores the old state if Firestore rejects the update. The contact action opens the device mail client with the opportunity context."
 
-## 7:00-8:00 - Firebase CRUD and security evidence
+Finish the phone workflow before opening VS Code.
+
+## 7:00-7:35 - Firebase CRUD and security evidence
 
 **Show:** Firestore `opportunities` and `applications`; refresh the relevant document.
 
@@ -85,19 +89,43 @@ Open applicant management, change a prepared applicant from submitted to reviewi
 
 "The UI is not the security boundary. A student may submit only as themselves and only with submitted status. For live opportunities, the founder ID must equal the opportunity owner. Only that owner or an administrator may change application status, and the relationship IDs cannot be replaced. Bookmark paths are private to their user."
 
+## 7:35-8:00 - Start the code walkthrough
+
+**Switch to VS Code now.** Use `Cmd + P` to open each file by its exact path. Do not browse the whole project tree during the recording.
+
+Open `lib/features/auth/session_controller.dart`.
+
+Say: "This controller listens to Firebase authentication, restores the matching profile, and exposes the session stages that drive `AuthGate`. The comment above the class marks the identity boundary I just demonstrated."
+
+Open `lib/features/opportunities/opportunity_controller.dart`.
+
+Say: "This controller combines the live opportunity stream with saved and applied state. Widgets call the controller instead of writing Firestore directly."
+
 ## 8:00-9:05 - Architecture, state propagation, and optimization
 
 **Show:** Architecture diagram, then relevant code.
 
 "The dependency flow is view, Riverpod controller, repository interface, then Firebase implementation. Widgets do not contain Firestore queries. Repositories make the backend replaceable and let tests use fakes."
 
-**Show:** `_refreshOpportunityCache` in `discover_view.dart`.
+**Open:** `lib/features/home/views/discover_view.dart`, then locate `_refreshOpportunityCache`.
 
 "This short comment marks the important performance boundary: match and normalized search caches refresh only when skills or opportunity data changes. Scrolling rebuilds visible widgets but does not recalculate every percentage. Pull-to-refresh invalidates the live providers and new data changes the cache signature."
 
-**Show:** `opportunity_match.dart` and `match_ring.dart`.
+**Open:** `lib/features/opportunities/opportunity_match.dart` and `lib/core/widgets/match_ring.dart`.
 
 "The matching function is a small pure calculation, which is easy to test. The ring only paints the result, so it does not restart an animation as cards enter the viewport. These changes came directly from profiling the physical-device experience."
+
+**Open:** `lib/core/widgets/glass_surface.dart`.
+
+Say: "This reusable widget supplies the rounded surface, border, gradient, shadow, and touch response used across the app. It keeps the glass-inspired visual language consistent without expensive full-screen blur."
+
+**Open:** `lib/features/cv/cv_analysis_controller.dart`.
+
+Say: "This is the AI path: it limits the PDF, sends it through Firebase AI Logic, requires structured JSON, and saves only editable results to the user's Firestore document."
+
+**Open:** `lib/features/applications/application_review_controller.dart`.
+
+Say: "This controller owns founder-side applicant state and performs an optimistic status update with rollback if Firebase rejects the write."
 
 ## 9:05-9:45 - Testing, limitations, and conclusion
 
