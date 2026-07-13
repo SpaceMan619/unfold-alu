@@ -34,11 +34,52 @@ class FakeApplicationRepository implements ApplicationRepository {
 }
 
 void main() {
-  test('founder has no fabricated applications without a repository', () {
-    final container = ProviderContainer();
+  test('signed-out account has no preview applications', () {
+    final container = ProviderContainer(
+      overrides: [
+        applicationRepositoryProvider.overrideWithValue(null),
+        applicationSessionProvider.overrideWithValue(const SessionState()),
+      ],
+    );
     addTearDown(container.dispose);
     expect(container.read(applicationReviewProvider), isEmpty);
   });
+
+  test(
+    'authenticated account can manage the preview pipeline locally',
+    () async {
+      final container = ProviderContainer(
+        overrides: [
+          applicationRepositoryProvider.overrideWithValue(null),
+          applicationSessionProvider.overrideWithValue(
+            const SessionState(
+              stage: SessionStage.authenticated,
+              uid: 'preview-founder',
+              role: AccountRole.student,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final previews = container.read(applicationReviewProvider);
+      expect(previews, hasLength(3));
+      expect(previews.every((item) => item.isPreview), isTrue);
+
+      await container
+          .read(applicationReviewProvider.notifier)
+          .updateStatus('preview-imani', ApplicationStatus.accepted);
+
+      expect(
+        container
+            .read(applicationReviewProvider)
+            .firstWhere((item) => item.application.id == 'preview-imani')
+            .application
+            .status,
+        ApplicationStatus.accepted,
+      );
+    },
+  );
 
   test('founder watches and updates repository applications', () async {
     final repository = FakeApplicationRepository();

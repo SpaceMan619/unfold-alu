@@ -21,11 +21,16 @@ class _FounderDashboard extends ConsumerWidget {
         .opportunities
         .where((item) => item.ownerId == session.uid || session.uid.isEmpty)
         .toList();
-    final shortlisted = applications
-        .where(
-          (item) => item.application.status == ApplicationStatus.shortlisted,
-        )
-        .length;
+    final showingPreviews =
+        applications.isNotEmpty && applications.every((item) => item.isPreview);
+    int countFor(String opportunityId, {ApplicationStatus? status}) {
+      return applications.where((item) {
+        return !item.isPreview &&
+            item.application.opportunityId == opportunityId &&
+            (status == null || item.application.status == status);
+      }).length;
+    }
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
@@ -85,6 +90,14 @@ class _FounderDashboard extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 14),
+        if (applications.isNotEmpty) ...[
+          _ApplicantPipelineCard(
+            applications: applications,
+            showingPreviews: showingPreviews,
+            onReview: onReview,
+          ),
+          const SizedBox(height: 14),
+        ],
         if (opportunities.isEmpty)
           const GlassSurface(
             child: Text(
@@ -143,7 +156,8 @@ class _FounderDashboard extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${applications.length} applicants · $shortlisted shortlisted',
+                    '${countFor(opportunity.id)} applicants · '
+                    '${countFor(opportunity.id, status: ApplicationStatus.shortlisted)} shortlisted',
                     style: const TextStyle(color: UnfoldColors.muted),
                   ),
                   const SizedBox(height: 16),
@@ -317,12 +331,79 @@ class _MetricCard extends StatelessWidget {
   );
 }
 
+class _ApplicantPipelineCard extends StatelessWidget {
+  const _ApplicantPipelineCard({
+    required this.applications,
+    required this.showingPreviews,
+    required this.onReview,
+  });
+
+  final List<FounderApplication> applications;
+  final bool showingPreviews;
+  final VoidCallback onReview;
+
+  @override
+  Widget build(BuildContext context) {
+    int count(ApplicationStatus status) =>
+        applications.where((item) => item.application.status == status).length;
+    return GlassSurface(
+      color: UnfoldColors.cyan.withValues(alpha: .07),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.people_alt_rounded, color: UnfoldColors.cyan),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  showingPreviews ? 'Preview pipeline' : 'Applicant pipeline',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              Text(
+                '${applications.length}',
+                style: const TextStyle(
+                  color: UnfoldColors.cyan,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          Text(
+            showingPreviews
+                ? 'Fictional applicants for testing founder decisions. Real applicants replace them automatically.'
+                : '${count(ApplicationStatus.submitted)} new · '
+                      '${count(ApplicationStatus.reviewing)} reviewing · '
+                      '${count(ApplicationStatus.shortlisted)} shortlisted',
+            style: const TextStyle(color: UnfoldColors.muted, height: 1.4),
+          ),
+          const SizedBox(height: 15),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              key: const ValueKey('review-preview-applicants'),
+              onPressed: onReview,
+              icon: const Icon(Icons.rule_rounded),
+              label: const Text('Manage applicants'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ApplicationReviewSheet extends ConsumerWidget {
   const _ApplicationReviewSheet();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final applications = ref.watch(applicationReviewProvider);
+    final showingPreviews =
+        applications.isNotEmpty && applications.every((item) => item.isPreview);
     return Container(
       margin: const EdgeInsets.only(top: 56),
       decoration: const BoxDecoration(
@@ -359,11 +440,18 @@ class _ApplicationReviewSheet extends ConsumerWidget {
                 ),
               ],
             ),
-            const Text(
-              'Move each person through a clear, simple hiring pipeline.',
-              style: TextStyle(color: UnfoldColors.muted),
+            Text(
+              showingPreviews
+                  ? 'Try the complete review flow. These fictional applicants reset when the app restarts.'
+                  : 'Move each person through a clear, simple hiring pipeline.',
+              style: const TextStyle(color: UnfoldColors.muted),
             ),
             const SizedBox(height: 20),
+            if (applications.isEmpty)
+              const _EmptyState(
+                icon: Icons.people_outline_rounded,
+                message: 'Applications to your published roles appear here.',
+              ),
             for (final item in applications) ...[
               _ApplicantCard(item: item),
               const SizedBox(height: 12),

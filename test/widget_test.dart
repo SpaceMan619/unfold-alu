@@ -2,11 +2,54 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unfold/app/unfold_app.dart';
+import 'package:unfold/features/applications/application_review_controller.dart';
 import 'package:unfold/features/auth/session_controller.dart';
 
 import 'support/fake_auth_repository.dart';
 
 void main() {
+  testWidgets('founder preview pipeline is reachable without live applicants', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+          applicationRepositoryProvider.overrideWithValue(null),
+          applicationSessionProvider.overrideWithValue(
+            const SessionState(
+              stage: SessionStage.authenticated,
+              uid: 'preview-founder',
+              role: AccountRole.student,
+              name: 'Rajveer Jolly',
+            ),
+          ),
+        ],
+        child: const UnfoldApp(demoAuthenticated: true),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('nav-3')));
+    await tester.pumpAndSettle();
+    final switchButton = find.text('Switch to founder studio');
+    await tester.ensureVisible(switchButton);
+    await tester.tap(switchButton);
+    await tester.pumpAndSettle();
+
+    final previewButton = find.byKey(
+      const ValueKey('review-preview-applicants'),
+    );
+    expect(find.text('Preview pipeline'), findsOneWidget);
+    await tester.ensureVisible(previewButton);
+    await tester.tap(previewButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Imani Okafor'), findsOneWidget);
+    expect(find.text('Tendai Moyo'), findsOneWidget);
+    expect(find.text('Nadia Uwase'), findsOneWidget);
+  });
+
   testWidgets('student can drag the nav thumb to another tab', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
