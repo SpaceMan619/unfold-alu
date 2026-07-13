@@ -245,7 +245,7 @@ class _ProfileView extends ConsumerWidget {
               const SizedBox(height: 10),
               const Center(
                 child: Text(
-                  'Unfold v0.8.0',
+                  'Unfold v0.9.0',
                   style: TextStyle(
                     color: UnfoldColors.muted,
                     fontSize: 11,
