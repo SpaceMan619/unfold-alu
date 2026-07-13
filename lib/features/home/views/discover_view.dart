@@ -94,6 +94,7 @@ class _DiscoverViewState extends State<_DiscoverView> {
         .where((part) => part.isNotEmpty)
         .toList();
     final firstName = nameParts.isEmpty ? 'there' : nameParts.first;
+    final visibleOpportunities = filteredOpportunities;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 128),
@@ -144,9 +145,9 @@ class _DiscoverViewState extends State<_DiscoverView> {
             ),
           ],
         ),
-        const SizedBox(height: 34),
+        const SizedBox(height: 24),
         SizedBox(
-          height: 140,
+          height: 112,
           child: AnimatedOpacity(
             opacity: sloganVisible ? 1 : 0,
             duration: const Duration(milliseconds: 320),
@@ -159,7 +160,7 @@ class _DiscoverViewState extends State<_DiscoverView> {
             ),
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 16),
         Stack(
           alignment: Alignment.centerRight,
           children: [
@@ -216,20 +217,24 @@ class _DiscoverViewState extends State<_DiscoverView> {
                     .toList(),
           ),
         ),
-        const SizedBox(height: 28),
-        const _SectionHeader(title: 'Explore opportunities', action: 'See all'),
+        const SizedBox(height: 22),
+        _SectionHeader(
+          title: 'Explore opportunities',
+          action: '${visibleOpportunities.length} open',
+        ),
         const SizedBox(height: 14),
-        if (!widget.hasCvEvidence) ...[
-          const _ProfileMatchBanner(),
-          const SizedBox(height: 14),
-        ],
-        if (filteredOpportunities.isEmpty)
+        if (visibleOpportunities.isEmpty) ...[
           const _EmptyState(
             icon: Icons.search_off_rounded,
             message: 'No opportunities match those filters yet.',
           ),
-        ...filteredOpportunities.map(
-          (opportunity) => Padding(
+          if (!widget.hasCvEvidence) ...[
+            const SizedBox(height: 14),
+            const _ProfileMatchBanner(),
+          ],
+        ],
+        for (final (index, opportunity) in visibleOpportunities.indexed) ...[
+          Padding(
             padding: const EdgeInsets.only(bottom: 14),
             child: _OpportunityCard(
               opportunity: opportunity,
@@ -238,7 +243,13 @@ class _DiscoverViewState extends State<_DiscoverView> {
               onTap: () => widget.onOpen(opportunity),
             ),
           ),
-        ),
+          if (index == 1 && !widget.hasCvEvidence) ...[
+            const _ProfileMatchBanner(),
+            const SizedBox(height: 14),
+          ],
+        ],
+        if (visibleOpportunities.length == 1 && !widget.hasCvEvidence)
+          const _ProfileMatchBanner(),
       ],
     );
   }
@@ -326,91 +337,108 @@ class _OpportunityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassSurface(
       onTap: onTap,
+      radius: 26,
+      padding: const EdgeInsets.all(16),
       color: opportunity.color.withValues(alpha: 0.07),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                width: 34,
-                height: 3,
-                decoration: BoxDecoration(
-                  color: opportunity.color,
-                  borderRadius: BorderRadius.circular(99),
-                  boxShadow: [
-                    BoxShadow(
-                      color: opportunity.color.withValues(alpha: .55),
-                      blurRadius: 12,
+              _StartupLogo(opportunity: opportunity),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            opportunity.startup,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Icon(
+                          Icons.verified_rounded,
+                          size: 15,
+                          color: opportunity.color,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _categoryFor(opportunity).toUpperCase(),
+                      style: TextStyle(
+                        color: opportunity.color,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const Spacer(),
-              Text(
-                _categoryFor(opportunity).toUpperCase(),
-                style: TextStyle(
-                  color: opportunity.color,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.4,
-                ),
-              ),
-              const SizedBox(width: 9),
-              _CompensationPill(opportunity: opportunity),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              _StartupLogo(opportunity: opportunity),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Text(
-                  opportunity.startup,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: opportunity.color.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'Verified',
-                  style: TextStyle(
-                    color: opportunity.color,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
+              IconButton(
+                key: ValueKey('save-${opportunity.id}'),
+                tooltip: saved ? 'Remove bookmark' : 'Save opportunity',
+                visualDensity: VisualDensity.compact,
+                onPressed: onSave,
+                icon: Icon(
+                  saved
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded,
+                  color: saved ? UnfoldColors.amber : Colors.white,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 15),
           Text(
             opportunity.role,
             style: Theme.of(context).textTheme.headlineSmall,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 11),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _OpportunityFact(
+                icon: _opportunityTypeIcon(opportunity.type),
+                label: _opportunityTypeLabel(opportunity.type),
+              ),
+              _OpportunityFact(
+                icon: Icons.location_on_outlined,
+                label: opportunity.location,
+              ),
+              _CompensationPill(opportunity: opportunity),
+            ],
+          ),
+          const SizedBox(height: 12),
           Text(
             opportunity.summary,
-            style: const TextStyle(color: UnfoldColors.muted),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: UnfoldColors.muted,
+              fontSize: 13,
+              height: 1.4,
+            ),
           ),
           if (opportunity.skills.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 13),
             Wrap(
-              spacing: 7,
-              runSpacing: 7,
+              spacing: 6,
+              runSpacing: 6,
               children: opportunity.skills.take(3).map((skill) {
                 return Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
+                    horizontal: 9,
+                    vertical: 5,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: .055),
@@ -431,35 +459,71 @@ class _OpportunityCard extends StatelessWidget {
               }).toList(),
             ),
           ],
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
+          Divider(color: Colors.white.withValues(alpha: .08), height: 1),
+          const SizedBox(height: 12),
           Row(
             children: [
               const Icon(
-                Icons.location_on_outlined,
+                Icons.schedule_rounded,
                 size: 16,
                 color: UnfoldColors.muted,
               ),
               const SizedBox(width: 5),
               Expanded(
                 child: Text(
-                  opportunity.location,
+                  opportunity.commitment,
                   style: const TextStyle(
                     color: UnfoldColors.muted,
                     fontSize: 12,
                   ),
                 ),
               ),
-              IconButton(
-                key: ValueKey('save-${opportunity.id}'),
-                onPressed: onSave,
-                icon: Icon(
-                  saved
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                  color: saved ? UnfoldColors.amber : Colors.white,
+              const Text(
+                'View details',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
+              const SizedBox(width: 4),
+              const Icon(Icons.arrow_forward_rounded, size: 15),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OpportunityFact extends StatelessWidget {
+  const _OpportunityFact({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .055),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: Colors.white.withValues(alpha: .07)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: UnfoldColors.muted),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              color: UnfoldColors.muted,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -529,4 +593,22 @@ String _categoryFor(Opportunity opportunity) {
     return 'Technology';
   }
   return 'Business';
+}
+
+String _opportunityTypeLabel(OpportunityType type) {
+  return switch (type) {
+    OpportunityType.internship => 'Internship',
+    OpportunityType.job => 'Job',
+    OpportunityType.volunteering => 'Volunteer',
+    OpportunityType.project => 'Project',
+  };
+}
+
+IconData _opportunityTypeIcon(OpportunityType type) {
+  return switch (type) {
+    OpportunityType.internship => Icons.school_outlined,
+    OpportunityType.job => Icons.work_outline_rounded,
+    OpportunityType.volunteering => Icons.volunteer_activism_outlined,
+    OpportunityType.project => Icons.rocket_launch_outlined,
+  };
 }

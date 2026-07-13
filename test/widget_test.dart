@@ -7,6 +7,26 @@ import 'package:unfold/features/auth/session_controller.dart';
 import 'support/fake_auth_repository.dart';
 
 void main() {
+  testWidgets('student can drag the nav thumb to another tab', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        ],
+        child: const UnfoldApp(demoAuthenticated: true),
+      ),
+    );
+
+    final thumb = find.byKey(const ValueKey('nav-thumb'));
+    final destination = find.byKey(const ValueKey('nav-2'));
+    final start = tester.getCenter(thumb);
+    final end = tester.getCenter(destination);
+    await tester.dragFrom(start, Offset(end.dx - start.dx, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Applications'), findsOneWidget);
+  });
+
   testWidgets('student can open every primary tab', (tester) async {
     await tester.pumpWidget(
       ProviderScope(

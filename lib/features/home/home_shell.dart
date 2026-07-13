@@ -67,6 +67,7 @@ class HomeShell extends ConsumerStatefulWidget {
 class _HomeShellState extends ConsumerState<HomeShell> {
   UserMode mode = UserMode.student;
   int studentTab = 0;
+  double? navThumbLeft;
 
   @override
   Widget build(BuildContext context) {
@@ -146,32 +147,61 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     return SafeArea(
       minimum: const EdgeInsets.fromLTRB(18, 0, 18, 14),
       child: GlassSurface(
+        key: const ValueKey('student-navigation'),
         radius: 28,
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+        color: const Color(0xc91a1b20),
+        blurSigma: 16,
         child: LayoutBuilder(
           builder: (context, constraints) {
             final itemWidth = constraints.maxWidth / items.length;
+            final maxThumbLeft = constraints.maxWidth - itemWidth + 3;
+            final thumbLeft = navThumbLeft == null
+                ? studentTab * itemWidth + 3
+                : navThumbLeft!.clamp(3.0, maxThumbLeft).toDouble();
+            final visualTab = navThumbLeft == null
+                ? studentTab
+                : ((thumbLeft + itemWidth / 2) / itemWidth).floor().clamp(
+                    0,
+                    items.length - 1,
+                  );
             return SizedBox(
               height: 44,
               child: Stack(
                 children: [
                   AnimatedPositioned(
-                    duration: const Duration(milliseconds: 360),
+                    duration: navThumbLeft == null
+                        ? const Duration(milliseconds: 360)
+                        : Duration.zero,
                     curve: Curves.easeOutCubic,
-                    left: studentTab * itemWidth + 3,
+                    left: thumbLeft,
                     top: 0,
                     width: itemWidth - 6,
                     height: 44,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: UnfoldColors.mint,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.white.withValues(alpha: .98),
+                            Colors.white.withValues(alpha: .8),
+                          ],
+                        ),
                         borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: Colors.white70),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.white.withValues(alpha: .13),
+                            blurRadius: 14,
+                          ),
+                        ],
                       ),
                     ),
                   ),
                   Row(
                     children: List.generate(items.length, (index) {
-                      final selected = studentTab == index;
+                      final selected = visualTab == index;
                       return Expanded(
                         child: Semantics(
                           label: items[index].$2,
@@ -197,6 +227,42 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                         ),
                       );
                     }),
+                  ),
+                  AnimatedPositioned(
+                    duration: navThumbLeft == null
+                        ? const Duration(milliseconds: 360)
+                        : Duration.zero,
+                    curve: Curves.easeOutCubic,
+                    left: thumbLeft,
+                    top: 0,
+                    width: itemWidth - 6,
+                    height: 44,
+                    child: GestureDetector(
+                      key: const ValueKey('nav-thumb'),
+                      behavior: HitTestBehavior.opaque,
+                      onHorizontalDragStart: (_) => setState(
+                        () => navThumbLeft = studentTab * itemWidth + 3,
+                      ),
+                      onHorizontalDragUpdate: (details) {
+                        setState(() {
+                          navThumbLeft = (navThumbLeft! + details.delta.dx)
+                              .clamp(3.0, maxThumbLeft)
+                              .toDouble();
+                        });
+                      },
+                      onHorizontalDragEnd: (_) {
+                        final droppedTab =
+                            ((navThumbLeft! + itemWidth / 2) / itemWidth)
+                                .floor()
+                                .clamp(0, items.length - 1);
+                        setState(() {
+                          studentTab = droppedTab;
+                          navThumbLeft = null;
+                        });
+                      },
+                      onHorizontalDragCancel: () =>
+                          setState(() => navThumbLeft = null),
+                    ),
                   ),
                 ],
               ),
